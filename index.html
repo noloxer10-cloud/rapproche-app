@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Rapproché — Paiement unifié Airtel & MTN</title>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<!-- Rend l'appli installable sur l'écran d'accueil, en plein écran -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#17151A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rapproché">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-512.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --airtel-red: #E31E3C;
+    --airtel-red-deep: #9E0F26;
+    --mtn-yellow: #FFCC00;
+    --mtn-black: #111111;
+    --ink: #F5F3EE;
+    --dusk: #17151A;
+    --dusk-2: #1F1C24;
+    --seam: #FFFFFF;
+    --success: #35C48A;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    font-family: var(--font-body);
+    background: var(--dusk);
+    color: var(--ink);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow-x:hidden;
+  }
+  button{ font-family:inherit; cursor:pointer; border:none; background:none; color:inherit; }
+  input{ font-family:inherit; }
+
+  /* ---------- HEADER ---------- */
+  header{
+    padding: 22px 20px 14px;
+    text-align:center;
+    position:relative;
+    z-index:5;
+  }
+  .wordmark{
+    font-family: var(--font-display);
+    font-weight:700;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+  .wordmark span{ color: var(--mtn-yellow); }
+  .tagline{
+    font-size: 12px;
+    color: #9A96A3;
+    margin-top: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  /* ---------- SPLIT SELECT ---------- */
+  .split{
+    display:flex;
+    position:relative;
+    height: 168px;
+    margin: 6px 16px 0;
+    border-radius: 18px;
+    overflow:hidden;
+    box-shadow: 0 20px 40px -20px rgba(0,0,0,0.6);
+  }
+  .side{
+    flex:1;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding: 14px 10px;
+    transition: flex-grow 0.45s cubic-bezier(.2,.9,.3,1), filter 0.3s ease;
+    cursor:pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .side.airtel{
+    background: linear-gradient(155deg, var(--airtel-red) 0%, var(--airtel-red-deep) 100%);
+  }
+  .side.mtn{
+    background: linear-gradient(155deg, var(--mtn-yellow) 0%, #E0B400 100%);
+    color: var(--mtn-black);
+  }
+  .side.dim{ filter: brightness(0.55) saturate(0.7); flex-grow: 0.9; }
+  .side.active{ flex-grow: 1.25; }
+
+  .seam{
+    position:absolute; top:0; bottom:0; left:50%;
+    width: 3px;
+    background: var(--seam);
+    opacity: 0.85;
+    transform: translateX(-50%);
+    z-index:3;
+    box-shadow: 0 0 14px 2px rgba(255,255,255,0.5);
+  }
+  .split.single-account .seam{ display:none; }
+  .split.single-account .side{ flex-grow: 1 !important; }
+
+  .op-name{
+    font-family: var(--font-display);
+    font-weight:700;
+    font-size: 19px;
+    letter-spacing: -0.01em;
+  }
+  .op-sub{ font-size: 11px; opacity:0.85; font-weight:500; }
+  .op-balance{
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight:600;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+  .op-balance-row{
+    display:flex; align-items:center; gap: 6px;
+    margin-top: 2px;
+  }
+  .eye-btn{
+    width: 22px; height:22px;
+    border-radius:50%;
+    background: rgba(0,0,0,0.15);
+    display:flex; align-items:center; justify-content:center;
+    opacity: 0.8;
+    color: inherit;
+    flex-shrink:0;
+  }
+  .eye-btn:active{ opacity:1; }
+  .check{
+    position:absolute; top:10px; right:12px;
+    width:20px; height:20px; border-radius:50%;
+    background: rgba(255,255,255,0.25);
+    display:flex; align-items:center; justify-content:center;
+    font-size: 12px; opacity:0;
+    transition: opacity 0.2s ease;
+  }
+  .side.active .check{ opacity:1; background:#fff; color:#111; }
+
+  .hint-row{
+    text-align:center;
+    font-size: 11.5px;
+    color:#8A8694;
+    margin: 10px 20px 0;
+  }
+
+  /* ---------- CONSOLE ---------- */
+  .console{
+    margin: 22px 16px 0;
+    background: var(--dusk-2);
+    border-radius: 20px;
+    padding: 20px 18px 22px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .field-label{
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8A8694;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .amount-row{
+    display:flex; align-items:baseline; gap:8px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    padding-bottom: 12px;
+  }
+  .currency{ font-family: var(--font-display); font-size: 20px; color:#8A8694; }
+  #amount{
+    flex:1;
+    background:transparent;
+    border:none;
+    outline:none;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 34px;
+    font-weight: 600;
+    width: 100%;
+  }
+  #amount::placeholder{ color: #4A4652; }
+
+  .quick-amounts{
+    display:flex; gap:8px; margin-top: 12px;
+  }
+  .quick-amounts button{
+    flex:1;
+    background: rgba(255,255,255,0.06);
+    padding: 8px 0;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight:600;
+    color:#C8C4D0;
+    transition: background 0.15s ease;
+  }
+  .quick-amounts button:active{ background: rgba(255,255,255,0.14); }
+
+  .to-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:18px;
+    font-size: 13px;
+    color:#B4B0BC;
+  }
+  #dest-badge{
+    font-family: var(--font-display);
+    font-weight:700;
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius:20px;
+  }
+  .badge-airtel{ background: rgba(227,30,60,0.18); color: #FF6B84; }
+  .badge-mtn{ background: rgba(255,204,0,0.18); color: #FFCC00; }
+
+  /* ---------- TAP STAGE ---------- */
+  .tap-stage{
+    margin: 22px 16px 0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 6px;
+    height: 118px;
+    position:relative;
+  }
+  .phone{
+    width: 46px; height: 88px;
+    border-radius: 12px;
+    background: #2A2732;
+    border: 2px solid #3E3A48;
+    position:relative;
+    transition: transform 0.5s cubic-bezier(.3,1.4,.4,1);
+  }
+  .phone::after{
+    content:'';
+    position:absolute; inset: 6px;
+    border-radius: 6px;
+    background: linear-gradient(160deg, #3A3644, #262330);
+  }
+  .phone.left{ transform: translateX(-2px); }
+  .phone.right{ transform: translateX(2px); }
+  .tap-stage.clash .phone.left{ transform: translateX(9px) rotate(-3deg); }
+  .tap-stage.clash .phone.right{ transform: translateX(-9px) rotate(3deg); }
+
+  .pulse{
+    position:absolute;
+    width: 10px; height:10px;
+    border-radius:50%;
+    background: transparent;
+    pointer-events:none;
+  }
+  .pulse.go::before, .pulse.go::after{
+    content:'';
+    position:absolute; inset:0;
+    border-radius:50%;
+    border: 2px solid var(--success);
+    animation: ripple 0.9s ease-out forwards;
+  }
+  .pulse.go::after{ animation-delay: 0.18s; }
+  @keyframes ripple{
+    from{ width:10px; height:10px; margin:-5px; opacity:0.9; }
+    to{ width:120px; height:120px; margin:-60px; opacity:0; }
+  }
+
+  .cta{
+    margin: 20px 16px 0;
+    background: linear-gradient(90deg, var(--airtel-red), var(--mtn-yellow));
+    color: #16141A;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 15.5px;
+    text-align:center;
+    padding: 16px 0;
+    border-radius: 16px;
+    letter-spacing: -0.01em;
+    transition: transform 0.12s ease, opacity 0.2s ease;
+  }
+  .cta:active{ transform: scale(0.98); }
+  .cta.disabled{ opacity: 0.35; pointer-events:none; }
+  .cta.success{ background: var(--success); color:#0C1F17; }
+
+  .status-line{
+    text-align:center;
+    font-size: 12px;
+    color:#8A8694;
+    margin: 10px 16px 0;
+    min-height: 16px;
+  }
+
+  /* ---------- HISTORY ---------- */
+  .history{
+    margin: 26px 16px 30px;
+  }
+  .history-title{
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight:700;
+    color:#B4B0BC;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+  .tx{
+    display:flex; align-items:center; gap:12px;
+    padding: 12px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    animation: slideIn 0.35s ease;
+  }
+  @keyframes slideIn{
+    from{ opacity:0; transform: translateY(-6px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+  .tx-dot{
+    width: 34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-display); font-weight:700; font-size: 11px;
+    flex-shrink:0;
+  }
+  .tx-dot.airtel{ background: rgba(227,30,60,0.18); color:#FF6B84; }
+  .tx-dot.mtn{ background: rgba(255,204,0,0.18); color:#FFCC00; }
+  .tx-info{ flex:1; }
+  .tx-title{ font-size: 13.5px; font-weight:600; }
+  .tx-sub{ font-size: 11px; color:#8A8694; margin-top:2px; }
+  .tx-amount{ font-family: var(--font-display); font-weight:700; font-size: 14.5px; }
+  .empty-hist{ font-size:12.5px; color:#6E6A78; padding: 8px 4px; }
+
+  /* ---------- CONFIRM OVERLAY ---------- */
+  .confirm-overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(10,9,12,0.6);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index: 50;
+  }
+  .confirm-overlay.show{ display:flex; }
+  .confirm-sheet{
+    width:100%;
+    max-width: 480px;
+    background: var(--dusk-2);
+    border-radius: 24px 24px 0 0;
+    padding: 26px 22px 30px;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+    animation: sheetUp 0.28s cubic-bezier(.2,.9,.3,1);
+  }
+  @keyframes sheetUp{
+    from{ transform: translateY(30px); opacity:0; }
+    to{ transform: translateY(0); opacity:1; }
+  }
+  .confirm-title{
+    text-align:center; font-size: 12px; color:#8A8694;
+  }
+  .confirm-sub{
+    text-align:center; font-family: var(--font-display); font-weight:600;
+    font-size: 15px; margin-top: 4px; margin-bottom: 20px;
+  }
+  .code-label{
+    text-align:center; font-size: 11px; text-transform:uppercase;
+    letter-spacing:0.08em; color:#8A8694; margin-bottom: 12px;
+  }
+  .code-row{
+    display:flex; justify-content:center; gap: 10px; margin-bottom: 14px;
+  }
+  .code-digit{
+    width: 42px; height: 54px;
+    border-radius: 10px;
+    background: var(--dusk);
+    border: 1.5px solid var(--success);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-display);
+    font-size: 24px; font-weight:700;
+    color: var(--success);
+    animation: digitPop 0.35s cubic-bezier(.3,1.4,.4,1) backwards;
+  }
+  @keyframes digitPop{
+    from{ transform: scale(0.5); opacity:0; }
+    to{ transform: scale(1); opacity:1; }
+  }
+  .code-hint{
+    text-align:center; font-size: 12px; color:#B4B0BC;
+    line-height:1.5; margin: 0 6px 20px;
+  }
+  .confirm-amount-row{
+    display:flex; align-items:baseline; justify-content:space-between;
+    background: var(--dusk);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 12px; color:#8A8694;
+  }
+  .confirm-amount-row span:last-child{
+    font-family: var(--font-display); font-size: 20px; font-weight:600; color: var(--ink);
+  }
+  .confirm-btn{
+    width:100%;
+    background: var(--success);
+    color: #0C1F17;
+    font-family: var(--font-display);
+    font-weight:700;
+    font-size: 15px;
+    padding: 15px 0;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    transition: transform 0.12s ease;
+  }
+  .confirm-btn:active{ transform: scale(0.98); }
+  .cancel-btn{
+    width:100%;
+    text-align:center;
+    font-size: 13px;
+    color:#8A8694;
+    padding: 6px 0;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  /* ---------- MODE SWITCH ---------- */
+  .mode-switch{
+    display:flex;
+    justify-content:center;
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .mode-btn{
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight:600;
+    padding: 7px 16px;
+    border-radius: 20px;
+    background: var(--dusk-2);
+    color: #8A8694;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .mode-btn.active{
+    background: var(--ink);
+    color: var(--dusk);
+  }
+
+  /* ---------- RECEIVE SCREEN ---------- */
+  .receive-waiting{
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+    margin: 28px 20px 0;
+  }
+  .waiting-dot{
+    width: 10px; height:10px; border-radius:50%;
+    background: var(--success);
+    animation: waitPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes waitPulse{
+    0%,100%{ opacity:1; transform: scale(1); }
+    50%{ opacity:0.4; transform: scale(1.4); }
+  }
+  .waiting-text{ font-size: 13px; color:#8A8694; text-align:center; }
+
+  .receive-incoming{
+    margin: 22px 16px 0;
+    background: var(--dusk-2);
+    border-radius: 20px;
+    padding: 26px 20px;
+    text-align:center;
+    border: 1px solid rgba(53,196,138,0.3);
+    animation: sheetUp 0.3s cubic-bezier(.2,.9,.3,1);
+  }
+  .incoming-badge{
+    display:inline-block;
+    font-size: 11px; font-weight:700;
+    padding: 4px 12px; border-radius: 20px;
+    background: rgba(255,204,0,0.18); color: #FFCC00;
+    margin-bottom: 10px;
+  }
+  .incoming-amount{
+    font-family: var(--font-display);
+    font-size: 36px; font-weight:700;
+    color: var(--success);
+    margin-bottom: 6px;
+  }
+  .incoming-sub{
+    font-size: 12px; color:#B4B0BC; margin-bottom:18px; line-height:1.5;
+  }
+  .receive-history{ margin: 26px 16px 30px; }
+
+  /* ---------- HELP BUTTON & PANEL ---------- */
+  .help-btn{
+    position:absolute;
+    top: 20px; right: 20px;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    color: #C8C4D0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .settings-btn{
+    position:absolute;
+    top: 20px; left: 20px;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    color: #C8C4D0;
+    font-size: 14px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .notif-btn{
+    position:absolute;
+    top: 20px; left: 58px;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    color: #C8C4D0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .notif-dot{
+    position:absolute; top:5px; right:5px;
+    width:7px; height:7px; border-radius:50%;
+    background: var(--airtel-red);
+    border: 1.5px solid var(--dusk);
+  }
+  .profile-btn{
+    position:absolute;
+    top: 20px; right: 58px;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    color: #C8C4D0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  header{ position:relative; }
+
+  .settings-overlay{
+    position: fixed; inset:0;
+    background: rgba(10,9,12,0.6);
+    display:none;
+    align-items:flex-end; justify-content:center;
+    z-index: 56;
+  }
+  .settings-overlay.show{ display:flex; }
+  .settings-step-label{
+    text-align:center; font-size: 12px; color:#8A8694; margin: 4px 0 6px;
+  }
+  .settings-current{
+    text-align:center; font-size: 12px; color:#6E6A78; margin-bottom: 16px;
+  }
+
+  .help-overlay{
+    position: fixed; inset:0;
+    background: rgba(10,9,12,0.7);
+    display:none;
+    align-items:flex-end; justify-content:center;
+    z-index: 60;
+  }
+  .help-overlay.show{ display:flex; }
+  .help-sheet{
+    width:100%; max-width: 480px;
+    background: var(--dusk-2);
+    border-radius: 24px 24px 0 0;
+    padding: 20px 20px 30px;
+    max-height: 82vh;
+    display:flex; flex-direction:column;
+    animation: sheetUp 0.28s cubic-bezier(.2,.9,.3,1);
+  }
+  .help-header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 14px;
+    flex-shrink:0;
+  }
+  .help-title{ font-family: var(--font-display); font-weight:700; font-size: 17px; }
+  .help-close{
+    width: 28px; height:28px; border-radius:50%;
+    background: rgba(255,255,255,0.08);
+    color: #C8C4D0; font-size: 13px;
+  }
+  .help-body{ overflow-y:auto; }
+  .help-block{ margin-bottom: 18px; }
+  .help-block-title{
+    font-family: var(--font-display);
+    font-weight:700; font-size: 13.5px;
+    color: var(--mtn-yellow);
+    margin-bottom: 8px;
+  }
+  .help-block ol{ padding-left: 18px; }
+  .help-block li{ font-size: 13px; color:#D4D0DA; line-height:1.6; margin-bottom:4px; }
+  .help-block p{ font-size: 13px; color:#B4B0BC; line-height:1.6; }
+
+  /* ---------- PIN OVERLAY ---------- */
+  .pin-overlay{
+    position: fixed; inset:0;
+    background: rgba(10,9,12,0.6);
+    display:none;
+    align-items:flex-end; justify-content:center;
+    z-index: 55;
+  }
+  .pin-overlay.show{ display:flex; }
+  .pin-dots{
+    display:flex; justify-content:center; gap: 14px;
+    margin: 18px 0 8px;
+  }
+  .pin-dot{
+    width: 14px; height:14px; border-radius:50%;
+    border: 1.5px solid #4A4652;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  }
+  .pin-dot.filled{
+    background: var(--mtn-yellow);
+    border-color: var(--mtn-yellow);
+    transform: scale(1.15);
+  }
+  .pin-dots.shake{ animation: shake 0.4s ease; }
+  @keyframes shake{
+    0%,100%{ transform: translateX(0); }
+    25%{ transform: translateX(-8px); }
+    75%{ transform: translateX(8px); }
+  }
+  .pin-error{
+    text-align:center; font-size: 12px; color: #E31E3C;
+    height: 16px; margin-bottom: 12px; opacity:0; transition: opacity 0.15s ease;
+  }
+  .pin-error.show{ opacity:1; }
+  .keypad{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .keypad button{
+    height: 54px;
+    border-radius: 14px;
+    background: var(--dusk);
+    font-family: var(--font-display);
+    font-size: 18px; font-weight:600;
+    color: var(--ink);
+  }
+  .keypad button:active{ background: rgba(255,255,255,0.1); }
+  .keypad-empty{ background: transparent !important; pointer-events:none; }
+
+  /* ---------- SHARED FORM INPUT ---------- */
+  .onboard-input{
+    width:100%;
+    background: var(--dusk-2);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--ink);
+    font-size: 14px;
+    outline:none;
+    font-family: var(--font-body);
+  }
+  .onboard-input::placeholder{ color:#5A5662; }
+  .onboard-input:focus{ border-color: var(--mtn-yellow); }
+
+  /* ---------- PROFILE ---------- */
+  .profile-field{ margin-bottom: 14px; }
+  .profile-comptes{ margin-top: 10px; }
+  .profile-compte-row{
+    display:flex; align-items:center; gap:8px;
+    font-size: 13px; color:#C8C4D0;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .profile-compte-dot{ width:8px; height:8px; border-radius:50%; }
+
+  .beneficiary-row{
+    display:flex; align-items:center; gap:10px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .beneficiary-avatar{
+    width:32px; height:32px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-display); font-weight:700; font-size:12px;
+    flex-shrink:0;
+  }
+  .beneficiary-info{ flex:1; }
+  .beneficiary-name{ font-size:13.5px; font-weight:600; }
+  .beneficiary-sub{ font-size:11px; color:#8A8694; margin-top:1px; }
+  .beneficiary-remove{ font-size:11px; color:#8A8694; padding:4px 8px; }
+
+  .beneficiary-add{ margin-top:16px; padding-top:14px; border-top: 1px dashed rgba(255,255,255,0.1); }
+  .benef-op-choice{ display:flex; gap:8px; }
+  .benef-op-btn{
+    flex:1; padding:9px 0; border-radius:10px;
+    background: var(--dusk); color:#8A8694; font-size:12.5px; font-weight:600;
+  }
+  .benef-op-btn.active{ background: var(--mtn-yellow); color:#111; }
+
+  /* ---------- NOTIFICATIONS ---------- */
+  .notif-item{
+    display:flex; gap:10px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .notif-icon{
+    width:30px; height:30px; border-radius:50%;
+    background: rgba(255,204,0,0.15);
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; flex-shrink:0;
+  }
+  .notif-text{ font-size:13px; color:#D4D0DA; line-height:1.4; }
+  .notif-time{ font-size:11px; color:#6E6A78; margin-top:2px; }
+
+  /* ---------- ONBOARDING ---------- */
+  .onboard-overlay{
+    position: fixed; inset:0;
+    background: var(--dusk);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index: 90;
+    padding: 24px;
+  }
+  .onboard-overlay.show{ display:flex; }
+  .onboard-card{
+    width:100%; max-width: 380px;
+  }
+  .onboard-title{
+    font-family: var(--font-display);
+    font-weight:700; font-size: 20px;
+    margin: 6px 0 8px;
+  }
+  .onboard-sub{
+    font-size: 12.5px; color:#9A96A3; line-height:1.5; margin-bottom: 22px;
+  }
+  .onboard-field{ margin-bottom: 16px; }
+  .onboard-label{
+    display:flex; align-items:center; gap:7px;
+    font-size: 12px; color:#C8C4D0; margin-bottom: 7px; font-weight:500;
+  }
+  .onboard-dot{ width:8px; height:8px; border-radius:50%; }
+  .onboard-field input{
+    width:100%;
+    background: var(--dusk-2);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 13px 14px;
+    color: var(--ink);
+    font-size: 15px;
+    outline: none;
+  }
+  .onboard-field input::placeholder{ color:#5A5662; }
+  .onboard-field input:focus{ border-color: var(--mtn-yellow); }
+  .onboard-error{
+    font-size: 12px; color:#E31E3C; margin-bottom: 14px; opacity:0; transition: opacity 0.15s ease;
+  }
+  .onboard-error.show{ opacity:1; }
+
+  /* ---------- SPLASH SCREEN ---------- */
+  .splash{
+    position: fixed; inset:0;
+    background: var(--dusk);
+    display:flex; align-items:center; justify-content:center;
+    z-index: 100;
+    opacity: 1;
+    animation: splashOut 0.6s ease-in 2.9s forwards;
+  }
+
+  .splash-orb{
+    position:absolute;
+    top: 50%;
+    width: 42px; height:42px;
+    border-radius:50%;
+    margin-top: -21px;
+  }
+  .orb-mtn{
+    left: 50%;
+    margin-left: -21px;
+    background: radial-gradient(circle at 35% 30%, #FFE066, var(--mtn-yellow));
+    box-shadow: 0 0 26px 3px rgba(255,204,0,0.4);
+    animation: orbInLeft 0.9s cubic-bezier(.3,.7,.2,1) 0.15s both;
+  }
+  .orb-airtel{
+    left: 50%;
+    margin-left: -21px;
+    background: radial-gradient(circle at 35% 30%, #FF6B84, var(--airtel-red));
+    box-shadow: 0 0 26px 3px rgba(227,30,60,0.4);
+    animation: orbInRight 0.9s cubic-bezier(.3,.7,.2,1) 0.15s both;
+  }
+  @keyframes orbInLeft{
+    0%{ transform: translateX(-32vw) scale(1); opacity:0; }
+    18%{ opacity:1; }
+    78%{ transform: translateX(0) scale(1); opacity:1; }
+    90%{ transform: translateX(0) scale(0.4); opacity: 1; }
+    100%{ transform: translateX(0) scale(0); opacity:0; }
+  }
+  @keyframes orbInRight{
+    0%{ transform: translateX(32vw) scale(1); opacity:0; }
+    18%{ opacity:1; }
+    78%{ transform: translateX(0) scale(1); opacity:1; }
+    90%{ transform: translateX(0) scale(0.4); opacity: 1; }
+    100%{ transform: translateX(0) scale(0); opacity:0; }
+  }
+
+  .splash-flash{
+    position:absolute; top:50%; left:50%;
+    width: 10px; height:10px; margin:-5px 0 0 -5px;
+    border-radius:50%;
+    background: #fff;
+    opacity:0;
+    animation: flashPop 0.5s ease-out 0.98s both;
+  }
+  @keyframes flashPop{
+    0%{ width:10px; height:10px; margin:-5px 0 0 -5px; opacity:0; }
+    30%{ opacity: 0.9; }
+    100%{ width: 220px; height:220px; margin: -110px 0 0 -110px; opacity:0; }
+  }
+
+  .splash-mark{
+    position:relative;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    opacity:0;
+    animation: markIn 0.6s cubic-bezier(.2,.9,.3,1) 1.1s forwards;
+  }
+  .splash-word{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 32px;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+  .splash-e{ color: var(--mtn-yellow); }
+  .splash-sub{
+    font-size: 12px; color: #9A96A3; letter-spacing: 0.02em;
+  }
+  @keyframes markIn{
+    from{ opacity:0; transform: scale(0.85) translateY(6px); }
+    to{ opacity:1; transform: scale(1) translateY(0); }
+  }
+
+  @keyframes splashOut{
+    from{ opacity:1; }
+    to{ opacity:0; pointer-events:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="splash" id="splash">
+  <div class="splash-orb orb-mtn"></div>
+  <div class="splash-orb orb-airtel"></div>
+  <div class="splash-flash"></div>
+  <div class="splash-mark">
+    <span class="splash-word">Rapproch<span class="splash-e">é</span></span>
+    <div class="splash-sub">MTN MoMo & Airtel Money, réunis</div>
+  </div>
+</div>
+
+<div class="onboard-overlay" id="onboard-overlay">
+  <div class="onboard-card" id="onboard-step-numbers">
+    <div class="wordmark" style="margin-bottom:4px;">Rapproch<span style="color:var(--mtn-yellow);">é</span></div>
+    <div class="onboard-title">Crée ton compte</div>
+    <div class="onboard-sub">Entre le ou les numéros liés à tes comptes mobile money. Seuls les opérateurs renseignés apparaîtront dans l'appli.</div>
+
+    <div class="onboard-field">
+      <div class="onboard-label">
+        <span class="onboard-dot" style="background:var(--mtn-yellow);"></span> Numéro MTN MoMo
+      </div>
+      <input id="onboard-mtn" type="tel" inputmode="tel" placeholder="Ex : 06 XXX XX XX">
+    </div>
+
+    <div class="onboard-field">
+      <div class="onboard-label">
+        <span class="onboard-dot" style="background:var(--airtel-red);"></span> Numéro Airtel Money
+      </div>
+      <input id="onboard-airtel" type="tel" inputmode="tel" placeholder="Ex : 05 XXX XX XX">
+    </div>
+
+    <div class="onboard-error" id="onboard-error">Entre au moins un numéro pour continuer.</div>
+
+    <button class="confirm-btn" onclick="startVerification()">Continuer</button>
+  </div>
+
+  <div class="onboard-card" id="onboard-step-otp" style="display:none;">
+    <div class="onboard-title">Vérifie ton numéro</div>
+    <div class="onboard-sub" id="otp-sub">Un code a été envoyé par SMS au numéro MTN.</div>
+
+    <div class="pin-dots" id="otp-dots">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="pin-error" id="otp-error">Code incorrect, réessaie.</div>
+
+    <div class="keypad">
+      <button onclick="otpPress('1')">1</button>
+      <button onclick="otpPress('2')">2</button>
+      <button onclick="otpPress('3')">3</button>
+      <button onclick="otpPress('4')">4</button>
+      <button onclick="otpPress('5')">5</button>
+      <button onclick="otpPress('6')">6</button>
+      <button onclick="otpPress('7')">7</button>
+      <button onclick="otpPress('8')">8</button>
+      <button onclick="otpPress('9')">9</button>
+      <button class="keypad-empty"></button>
+      <button onclick="otpPress('0')">0</button>
+      <button onclick="otpBackspace()">⌫</button>
+    </div>
+    <button class="cancel-btn" onclick="backToNumbers()">Retour</button>
+  </div>
+</div>
+
+<div id="app-root" style="display:none;">
+<header>
+  <button class="help-btn" onclick="toggleHelp(true)" aria-label="Mode d'emploi">?</button>
+  <button class="settings-btn" onclick="toggleSettings(true)" aria-label="Paramètres">⚙</button>
+  <button class="notif-btn" onclick="toggleNotifs(true)" aria-label="Notifications">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    <span class="notif-dot" id="notif-dot" style="display:none;"></span>
+  </button>
+  <button class="profile-btn" onclick="toggleProfile(true)" aria-label="Profil">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  </button>
+  <div class="wordmark">Rapproch<span>é</span></div>
+  <div class="tagline">Un seul geste. MTN MoMo & Airtel Money, sans y penser.</div>
+  <div class="mode-switch" id="mode-switch">
+    <button class="mode-btn active" id="mode-send-btn" onclick="setMode('send')">J'envoie</button>
+    <button class="mode-btn" id="mode-receive-btn" onclick="setMode('receive')">Je reçois</button>
+  </div>
+</header>
+
+<div class="help-overlay" id="help-overlay">
+  <div class="help-sheet">
+    <div class="help-header">
+      <div class="help-title">Mode d'emploi</div>
+      <button class="help-close" onclick="toggleHelp(false)">✕</button>
+    </div>
+
+    <div class="help-body">
+      <div class="help-block">
+        <div class="help-block-title">Envoyer de l'argent</div>
+        <ol>
+          <li>Choisis le compte à débiter (MTN à gauche, Airtel à droite).</li>
+          <li>Entre un montant, ou touche un des montants rapides.</li>
+          <li>Touche "Rapprocher les téléphones".</li>
+          <li>Entre ton code PIN à 4 chiffres pour autoriser l'opération.</li>
+          <li>Vérifie que le code affiché correspond à celui du destinataire.</li>
+          <li>Touche "Confirmer" — la demande est envoyée, mais l'argent ne bouge pas encore.</li>
+        </ol>
+      </div>
+      <div class="help-block">
+        <div class="help-block-title">Recevoir de l'argent</div>
+        <ol>
+          <li>Va sur l'onglet "Je reçois".</li>
+          <li>Une demande en attente affiche le montant et un code.</li>
+          <li>Compare ce code avec celui de l'expéditeur.</li>
+          <li>Touche "Accepter et encaisser" pour valider, ou "Refuser" pour annuler.</li>
+        </ol>
+      </div>
+      <div class="help-block">
+        <div class="help-block-title">Le principe de sécurité</div>
+        <p>Rien n'est débité tant que : (1) le PIN de l'expéditeur n'est pas validé, et (2) le destinataire n'a pas explicitement accepté. Le code à 4 chiffres partagé garantit que les deux téléphones parlent bien l'un à l'autre.</p>
+      </div>
+      <div class="help-block">
+        <div class="help-block-title">Créer ton compte</div>
+        <p>À l'ouverture, tu entres le ou les numéros liés à tes comptes MTN MoMo et/ou Airtel Money. Un code envoyé par SMS vérifie que tu es bien le propriétaire de chaque numéro avant de l'activer. Seuls les opérateurs vérifiés apparaissent ensuite dans l'appli. Pour tester ce prototype, le code de démonstration est <strong>0000</strong>. Pour changer de numéro plus tard, va dans Paramètres ⚙ → "Gérer mes numéros".</p>
+      </div>
+      <div class="help-block">
+        <div class="help-block-title">Ton code PIN</div>
+        <p>Touche l'icône ⚙ pour définir ton propre code PIN à 4 chiffres (deux saisies pour confirmer). Il est enregistré sur cet appareil et te sera demandé à chaque envoi. Par défaut, le code de démonstration est 1234.</p>
+      </div>
+      <div class="help-block">
+        <div class="help-block-title">Limites du prototype</div>
+        <p>Ceci est une maquette : soldes, contacts et transactions sont simulés. Une vraie version nécessiterait une connexion aux API officielles MTN MoMo et Airtel Money, avec validation développeur (KYC).</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="settings-overlay" id="settings-overlay">
+  <div class="confirm-sheet">
+    <div class="confirm-title">Paramètres</div>
+    <div class="confirm-sub" id="settings-mode-label">Définir mon code PIN</div>
+
+    <div class="pin-dots" id="settings-dots-1">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="settings-step-label" id="settings-step-label">Étape 1/2 — Choisis un nouveau code</div>
+    <div class="pin-error" id="settings-error">Les deux codes ne correspondent pas.</div>
+
+    <div class="keypad">
+      <button onclick="settingsPress('1')">1</button>
+      <button onclick="settingsPress('2')">2</button>
+      <button onclick="settingsPress('3')">3</button>
+      <button onclick="settingsPress('4')">4</button>
+      <button onclick="settingsPress('5')">5</button>
+      <button onclick="settingsPress('6')">6</button>
+      <button onclick="settingsPress('7')">7</button>
+      <button onclick="settingsPress('8')">8</button>
+      <button onclick="settingsPress('9')">9</button>
+      <button class="keypad-empty"></button>
+      <button onclick="settingsPress('0')">0</button>
+      <button onclick="settingsBackspace()">⌫</button>
+    </div>
+
+    <div class="settings-current" id="settings-current"></div>
+    <button class="confirm-btn" style="background:var(--dusk-2); color:var(--ink); margin-bottom:10px;" onclick="editAccounts()">Gérer mes numéros</button>
+    <button class="cancel-btn" onclick="toggleSettings(false)">Fermer</button>
+  </div>
+</div>
+
+<!-- ---------- PROFIL & BÉNÉFICIAIRES ---------- -->
+<div class="help-overlay" id="profile-overlay">
+  <div class="help-sheet">
+    <div class="help-header">
+      <div class="help-title">Mon profil</div>
+      <button class="help-close" onclick="toggleProfile(false)">✕</button>
+    </div>
+    <div class="help-body">
+
+      <div class="profile-field">
+        <div class="onboard-label">Nom complet</div>
+        <input id="profile-name" class="onboard-input" placeholder="Ton nom">
+      </div>
+      <div class="profile-comptes" id="profile-comptes"></div>
+      <button class="confirm-btn" style="margin:14px 0 24px;" onclick="saveProfile()">Enregistrer</button>
+
+      <div class="help-block-title" style="margin-bottom:10px;">Mes bénéficiaires</div>
+      <div id="beneficiaries-list"></div>
+
+      <div class="beneficiary-add">
+        <input id="benef-name" class="onboard-input" placeholder="Nom du bénéficiaire" style="margin-bottom:8px;">
+        <input id="benef-phone" class="onboard-input" placeholder="Numéro de téléphone" style="margin-bottom:8px;">
+        <div class="benef-op-choice">
+          <button class="benef-op-btn active" id="benef-op-mtn" onclick="setBenefOp('mtn')">MTN</button>
+          <button class="benef-op-btn" id="benef-op-airtel" onclick="setBenefOp('airtel')">Airtel</button>
+        </div>
+        <button class="confirm-btn" style="background:var(--dusk-2); color:var(--ink); margin-top:10px;" onclick="addBeneficiary()">Ajouter ce bénéficiaire</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ---------- NOTIFICATIONS ---------- -->
+<div class="help-overlay" id="notif-overlay">
+  <div class="help-sheet">
+    <div class="help-header">
+      <div class="help-title">Notifications</div>
+      <button class="help-close" onclick="toggleNotifs(false)">✕</button>
+    </div>
+    <div class="help-body" id="notif-list">
+      <div class="empty-hist">Aucune notification pour l'instant.</div>
+    </div>
+  </div>
+</div>
+
+<div class="pin-overlay" id="pin-overlay">
+  <div class="confirm-sheet">
+    <div class="confirm-title">Code PIN requis</div>
+    <div class="confirm-sub" id="pin-sub">Confirme l'envoi depuis ton compte MTN</div>
+
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="pin-error" id="pin-error">PIN incorrect, réessaie.</div>
+
+    <div class="keypad" id="keypad">
+      <button onclick="pinPress('1')">1</button>
+      <button onclick="pinPress('2')">2</button>
+      <button onclick="pinPress('3')">3</button>
+      <button onclick="pinPress('4')">4</button>
+      <button onclick="pinPress('5')">5</button>
+      <button onclick="pinPress('6')">6</button>
+      <button onclick="pinPress('7')">7</button>
+      <button onclick="pinPress('8')">8</button>
+      <button onclick="pinPress('9')">9</button>
+      <button class="keypad-empty"></button>
+      <button onclick="pinPress('0')">0</button>
+      <button onclick="pinBackspace()">⌫</button>
+    </div>
+
+    <button class="cancel-btn" onclick="cancelPin()">Annuler</button>
+  </div>
+</div>
+
+
+<div id="send-screen">
+
+<div class="split" id="split">
+  <div class="seam"></div>
+  <div class="side mtn active" id="side-mtn" onclick="selectOperator('mtn')">
+    <div class="check">✓</div>
+    <div class="op-name">MTN</div>
+    <div class="op-sub">MoMo</div>
+    <div class="op-balance-row">
+      <div class="op-balance masked" id="bal-mtn" data-value="31 800 FCFA">•••• FCFA</div>
+      <button class="eye-btn" id="eye-mtn" onclick="event.stopPropagation(); toggleBalance('mtn')" aria-label="Afficher le solde">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="side airtel dim" id="side-airtel" onclick="selectOperator('airtel')">
+    <div class="check">✓</div>
+    <div class="op-name">Airtel</div>
+    <div class="op-sub">Money</div>
+    <div class="op-balance-row">
+      <div class="op-balance masked" id="bal-airtel" data-value="45 200 FCFA">•••• FCFA</div>
+      <button class="eye-btn" id="eye-airtel" onclick="event.stopPropagation(); toggleBalance('airtel')" aria-label="Afficher le solde">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="hint-row">Touche un côté pour choisir le compte à débiter</div>
+
+<div class="console">
+  <div class="field-label">Montant à envoyer</div>
+  <div class="amount-row">
+    <span class="currency">FCFA</span>
+    <input id="amount" type="number" inputmode="numeric" placeholder="0" oninput="refreshCta()">
+  </div>
+  <div class="quick-amounts">
+    <button onclick="setAmount(1000)">1 000</button>
+    <button onclick="setAmount(5000)">5 000</button>
+    <button onclick="setAmount(10000)">10 000</button>
+    <button onclick="setAmount(20000)">20 000</button>
+  </div>
+  <div class="to-row">
+    <span>Débit depuis</span>
+    <span id="dest-badge" class="badge-mtn">MTN</span>
+  </div>
+</div>
+
+<div class="tap-stage" id="tap-stage">
+  <div class="phone left"></div>
+  <div class="pulse" id="pulse"></div>
+  <div class="phone right"></div>
+</div>
+
+<button class="cta disabled" id="cta" onclick="doTap()">Entre un montant pour continuer</button>
+<div class="status-line" id="status"></div>
+
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-sheet">
+    <div class="confirm-title" id="confirm-title">Envoi en cours…</div>
+    <div class="confirm-sub" id="confirm-contact">Compte Airtel</div>
+
+    <div class="code-label">Donne ce code au destinataire</div>
+    <div class="code-row" id="code-row"></div>
+    <div class="code-hint" id="confirm-status-hint">Connexion au serveur…</div>
+
+    <div class="confirm-amount-row">
+      <span>Montant</span>
+      <span id="confirm-amount">0 FCFA</span>
+    </div>
+
+    <button class="cancel-btn" onclick="cancelConfirm()">Annuler</button>
+  </div>
+</div>
+
+<div class="history">
+  <div class="history-title">Transactions récentes</div>
+  <div id="history-list">
+    <div class="empty-hist">Aucune transaction pour l'instant — elles apparaîtront ici.</div>
+  </div>
+</div>
+
+</div>
+
+<div id="receive-screen" style="display:none;">
+
+  <div class="tap-stage" style="margin-top:22px;">
+    <div class="phone left"></div>
+    <div class="phone right"></div>
+  </div>
+  <div class="hint-row" id="receive-hint">Entre le code donné par l'expéditeur</div>
+
+  <div class="receive-waiting" id="receive-waiting">
+    <div class="onboard-field" style="max-width:220px; margin:14px auto 0;">
+      <input id="join-code-input" class="onboard-input" type="tel" inputmode="numeric" placeholder="Code à 6 chiffres" style="text-align:center; letter-spacing:3px; font-size:18px;">
+    </div>
+    <div class="onboard-error" id="join-error">Code introuvable ou expiré.</div>
+    <button class="confirm-btn" style="max-width:220px; margin:12px auto 0;" onclick="joinSession()">Rejoindre</button>
+  </div>
+
+  <div class="receive-incoming" id="receive-incoming" style="display:none;">
+    <div class="incoming-badge" id="incoming-badge">Depuis MTN</div>
+    <div class="incoming-amount" id="incoming-amount">+5 000 FCFA</div>
+    <div class="incoming-sub">Vérifie que ce code correspond à celui affiché chez l'expéditeur</div>
+
+    <div class="code-row" id="receive-code-row"></div>
+
+    <button class="confirm-btn" onclick="acceptIncoming()">Accepter et encaisser</button>
+    <button class="cancel-btn" onclick="declineIncoming()">Refuser</button>
+  </div>
+
+  <div class="receive-history">
+    <div class="history-title">Reçu récemment</div>
+    <div id="receive-history-list">
+      <div class="empty-hist">Rien reçu pour l'instant.</div>
+    </div>
+  </div>
+
+</div>
+
+</div>
+
+<script>
+  let selected = 'mtn';
+  let balances = { airtel: 45200, mtn: 31800 };
+  let busy = false;
+  let myAccounts = { mtn: null, airtel: null };
+
+  // ---------- ACCOUNT / ONBOARDING ----------
+  function loadAccounts(){
+    const saved = localStorage.getItem('rapproche_accounts');
+    return saved ? JSON.parse(saved) : null;
+  }
+
+  function initApp(){
+    const saved = loadAccounts();
+    if (saved && (saved.mtn || saved.airtel)) {
+      myAccounts = saved;
+      launchApp();
+    } else {
+      document.getElementById('onboard-overlay').classList.add('show');
+    }
+  }
+
+  let verifyQueue = [];
+  let pendingNumbers = { mtn: null, airtel: null };
+  let otpBuffer = '';
+  let currentOtpCode = '';
+
+  function startVerification(){
+    const mtnNum = document.getElementById('onboard-mtn').value.trim();
+    const airtelNum = document.getElementById('onboard-airtel').value.trim();
+
+    if (!mtnNum && !airtelNum) {
+      document.getElementById('onboard-error').classList.add('show');
+      return;
+    }
+    document.getElementById('onboard-error').classList.remove('show');
+
+    pendingNumbers = { mtn: mtnNum || null, airtel: airtelNum || null };
+    verifyQueue = [];
+    if (mtnNum) verifyQueue.push('mtn');
+    if (airtelNum) verifyQueue.push('airtel');
+
+    nextVerification();
+  }
+
+  function nextVerification(){
+    if (verifyQueue.length === 0) {
+      // all numbers verified — save and launch
+      myAccounts = pendingNumbers;
+      localStorage.setItem('rapproche_accounts', JSON.stringify(myAccounts));
+      document.getElementById('onboard-overlay').classList.remove('show');
+      launchApp();
+      return;
+    }
+
+    const op = verifyQueue[0];
+    otpBuffer = '';
+    currentOtpCode = '0000';
+    document.getElementById('otp-sub').textContent =
+      'Un code a été envoyé par SMS au numéro ' + (op === 'mtn' ? 'MTN' : 'Airtel') + ' (' + pendingNumbers[op] + ').';
+    document.getElementById('otp-error').classList.remove('show');
+    renderOtpDots();
+
+    document.getElementById('onboard-step-numbers').style.display = 'none';
+    document.getElementById('onboard-step-otp').style.display = '';
+  }
+
+  function renderOtpDots(){
+    const dots = document.querySelectorAll('#otp-dots .pin-dot');
+    dots.forEach((d, i) => d.classList.toggle('filled', i < otpBuffer.length));
+  }
+
+  function otpPress(digit){
+    if (otpBuffer.length >= 4) return;
+    otpBuffer += digit;
+    renderOtpDots();
+    if (otpBuffer.length === 4) {
+      setTimeout(() => {
+        if (otpBuffer === currentOtpCode) {
+          verifyQueue.shift();
+          nextVerification();
+        } else {
+          const dotsWrap = document.getElementById('otp-dots');
+          dotsWrap.classList.add('shake');
+          document.getElementById('otp-error').classList.add('show');
+          setTimeout(() => {
+            dotsWrap.classList.remove('shake');
+            otpBuffer = '';
+            renderOtpDots();
+          }, 400);
+        }
+      }, 150);
+    }
+  }
+
+  function otpBackspace(){
+    otpBuffer = otpBuffer.slice(0, -1);
+    renderOtpDots();
+  }
+
+  function backToNumbers(){
+    document.getElementById('onboard-step-otp').style.display = 'none';
+    document.getElementById('onboard-step-numbers').style.display = '';
+  }
+
+  function editAccounts(){
+    toggleSettings(false);
+    document.getElementById('onboard-mtn').value = myAccounts.mtn || '';
+    document.getElementById('onboard-airtel').value = myAccounts.airtel || '';
+    document.getElementById('onboard-error').classList.remove('show');
+    document.getElementById('onboard-step-otp').style.display = 'none';
+    document.getElementById('onboard-step-numbers').style.display = '';
+    document.getElementById('onboard-overlay').classList.add('show');
+  }
+
+  function launchApp(){
+    document.getElementById('app-root').style.display = '';
+    applyAccountVisibility();
+  }
+
+  function applyAccountVisibility(){
+    const hasMtn = !!myAccounts.mtn;
+    const hasAirtel = !!myAccounts.airtel;
+
+    document.getElementById('side-mtn').style.display = hasMtn ? '' : 'none';
+    document.getElementById('side-airtel').style.display = hasAirtel ? '' : 'none';
+    document.getElementById('split').classList.toggle('single-account', !(hasMtn && hasAirtel));
+
+    if (hasMtn && !hasAirtel) selected = 'mtn';
+    if (hasAirtel && !hasMtn) selected = 'airtel';
+    selectOperator(selected);
+  }
+
+  function fmt(n){ return n.toLocaleString('fr-FR').replace(/,/g,' ') + ' FCFA'; }
+
+  let balanceVisible = { mtn: false, airtel: false };
+
+  const EYE_OPEN = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_CLOSED = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.7 19.7 0 0 1 4.22-5.94M9.9 4.24A10.6 10.6 0 0 1 12 4c7 0 11 8 11 8a19.6 19.6 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>';
+
+  function updateBalanceDisplay(op){
+    const el = document.getElementById('bal-' + op);
+    const eyeBtn = document.getElementById('eye-' + op);
+    el.setAttribute('data-value', fmt(balances[op]));
+    if (balanceVisible[op]) {
+      el.textContent = fmt(balances[op]);
+      el.classList.remove('masked');
+      if (eyeBtn) eyeBtn.innerHTML = EYE_CLOSED;
+    } else {
+      el.textContent = '•••• FCFA';
+      el.classList.add('masked');
+      if (eyeBtn) eyeBtn.innerHTML = EYE_OPEN;
+    }
+  }
+
+  function toggleBalance(op){
+    balanceVisible[op] = !balanceVisible[op];
+    updateBalanceDisplay(op);
+  }
+
+  function selectOperator(op){
+    if (busy) return;
+    selected = op;
+    document.getElementById('side-airtel').classList.toggle('active', op==='airtel');
+    document.getElementById('side-airtel').classList.toggle('dim', op!=='airtel');
+    document.getElementById('side-mtn').classList.toggle('active', op==='mtn');
+    document.getElementById('side-mtn').classList.toggle('dim', op!=='mtn');
+
+    const badge = document.getElementById('dest-badge');
+    badge.textContent = op === 'airtel' ? 'Airtel' : 'MTN';
+    badge.className = op === 'airtel' ? 'badge-airtel' : 'badge-mtn';
+    refreshCta();
+  }
+
+  function setAmount(v){
+    document.getElementById('amount').value = v;
+    refreshCta();
+  }
+
+  function refreshCta(){
+    const cta = document.getElementById('cta');
+    const val = Number(document.getElementById('amount').value || 0);
+    if (busy) return;
+    if (val > 0 && val <= balances[selected]) {
+      cta.classList.remove('disabled');
+      cta.textContent = 'Rapprocher les téléphones';
+    } else if (val > balances[selected]) {
+      cta.classList.add('disabled');
+      cta.textContent = 'Solde insuffisant sur ce compte';
+    } else {
+      cta.classList.add('disabled');
+      cta.textContent = 'Entre un montant pour continuer';
+    }
+  }
+
+  let pendingAmount = 0;
+  let pendingOther = 'mtn';
+  let pendingFrom = 'mtn';
+  let pendingRequest = null;
+
+  function doTap(){
+    const amountInput = document.getElementById('amount');
+    const val = Number(amountInput.value || 0);
+    if (val <= 0 || val > balances[selected] || busy) return;
+
+    busy = true;
+    const stage = document.getElementById('tap-stage');
+    const status = document.getElementById('status');
+    const cta = document.getElementById('cta');
+    const pulse = document.getElementById('pulse');
+
+    stage.classList.add('clash');
+    status.textContent = 'Rapprochement en cours…';
+    cta.classList.add('disabled');
+
+    setTimeout(() => { pulse.classList.add('go'); }, 220);
+
+    setTimeout(() => {
+      pendingAmount = val;
+      pendingFrom = selected;
+      pendingOther = selected === 'airtel' ? 'mtn' : 'airtel';
+
+      stage.classList.remove('clash');
+      pulse.classList.remove('go');
+      status.textContent = '';
+
+      openPin();
+    }, 950);
+  }
+
+  const DEFAULT_PIN = '1234';
+  function getSavedPin(){
+    return localStorage.getItem('rapproche_pin') || DEFAULT_PIN;
+  }
+  let pinBuffer = '';
+
+  function openPin(){
+    pinBuffer = '';
+    document.getElementById('pin-sub').textContent =
+      'Confirme l\'envoi depuis ton compte ' + (pendingFrom === 'airtel' ? 'Airtel' : 'MTN');
+    document.getElementById('pin-error').classList.remove('show');
+    renderPinDots();
+    document.getElementById('pin-overlay').classList.add('show');
+  }
+
+  function renderPinDots(){
+    const dots = document.querySelectorAll('#pin-dots .pin-dot');
+    dots.forEach((d, i) => d.classList.toggle('filled', i < pinBuffer.length));
+  }
+
+  function pinPress(digit){
+    if (pinBuffer.length >= 4) return;
+    pinBuffer += digit;
+    renderPinDots();
+    if (pinBuffer.length === 4) {
+      setTimeout(() => {
+        if (pinBuffer === getSavedPin()) {
+          document.getElementById('pin-overlay').classList.remove('show');
+          openConfirm();
+        } else {
+          const dotsWrap = document.getElementById('pin-dots');
+          dotsWrap.classList.add('shake');
+          document.getElementById('pin-error').classList.add('show');
+          setTimeout(() => {
+            dotsWrap.classList.remove('shake');
+            pinBuffer = '';
+            renderPinDots();
+          }, 400);
+        }
+      }, 150);
+    }
+  }
+
+  function pinBackspace(){
+    pinBuffer = pinBuffer.slice(0, -1);
+    renderPinDots();
+  }
+
+  function cancelPin(){
+    document.getElementById('pin-overlay').classList.remove('show');
+    pinBuffer = '';
+    busy = false;
+    refreshCta();
+  }
+
+  function toggleHelp(show){
+    document.getElementById('help-overlay').classList.toggle('show', show);
+  }
+
+  // ---------- SETTINGS: register a personal PIN ----------
+  let settingsBuffer = '';
+  let settingsStage = 'new';   // 'new' then 'confirm'
+  let settingsFirstEntry = '';
+
+  function toggleSettings(show){
+    document.getElementById('settings-overlay').classList.toggle('show', show);
+    if (show) resetSettingsFlow();
+  }
+
+  function resetSettingsFlow(){
+    settingsStage = 'new';
+    settingsFirstEntry = '';
+    settingsBuffer = '';
+    document.getElementById('settings-step-label').textContent = 'Étape 1/2 — Choisis un nouveau code';
+    document.getElementById('settings-error').classList.remove('show');
+    document.getElementById('settings-current').textContent =
+      localStorage.getItem('rapproche_pin') ? 'Un code personnel est déjà enregistré.' : 'Code actuel par défaut : 1234 (démo)';
+    renderSettingsDots();
+  }
+
+  function renderSettingsDots(){
+    const dots = document.querySelectorAll('#settings-dots-1 .pin-dot');
+    dots.forEach((d, i) => d.classList.toggle('filled', i < settingsBuffer.length));
+  }
+
+  function settingsPress(digit){
+    if (settingsBuffer.length >= 4) return;
+    settingsBuffer += digit;
+    renderSettingsDots();
+    if (settingsBuffer.length === 4) {
+      setTimeout(() => {
+        if (settingsStage === 'new') {
+          settingsFirstEntry = settingsBuffer;
+          settingsStage = 'confirm';
+          settingsBuffer = '';
+          document.getElementById('settings-step-label').textContent = 'Étape 2/2 — Confirme le même code';
+          renderSettingsDots();
+        } else {
+          if (settingsBuffer === settingsFirstEntry) {
+            localStorage.setItem('rapproche_pin', settingsBuffer);
+            document.getElementById('settings-current').textContent = 'Nouveau code PIN enregistré ✓';
+            pushNotification('🔒', 'Ton code PIN a été mis à jour.');
+            document.getElementById('settings-error').classList.remove('show');
+            setTimeout(() => toggleSettings(false), 900);
+          } else {
+            document.getElementById('settings-error').classList.add('show');
+            const dotsWrap = document.getElementById('settings-dots-1');
+            dotsWrap.classList.add('shake');
+            setTimeout(() => {
+              dotsWrap.classList.remove('shake');
+              resetSettingsFlow();
+            }, 500);
+          }
+        }
+      }, 150);
+    }
+  }
+
+  function settingsBackspace(){
+    settingsBuffer = settingsBuffer.slice(0, -1);
+    renderSettingsDots();
+  }
+
+  const SERVER_URL = 'https://rapproche-server.onrender.com';
+  let socket = null;
+  function getSocket(){
+    if (!socket) socket = io(SERVER_URL);
+    return socket;
+  }
+
+  async function openConfirm(){
+    document.getElementById('confirm-title').textContent = 'Envoi en cours…';
+    document.getElementById('confirm-contact').textContent = 'Vers un compte ' + (pendingOther === 'airtel' ? 'Airtel' : 'MTN');
+    document.getElementById('confirm-amount').textContent = fmt(pendingAmount);
+    document.getElementById('confirm-status-hint').textContent = 'Connexion au serveur…';
+    document.getElementById('code-row').innerHTML = '';
+    document.getElementById('confirm-overlay').classList.add('show');
+
+    const fromNumber = myAccounts[pendingFrom];
+    if (!fromNumber) {
+      document.getElementById('confirm-status-hint').textContent = "Aucun numéro " + (pendingFrom === 'airtel' ? 'Airtel' : 'MTN') + " enregistré.";
+      return;
+    }
+
+    try {
+      const res = await fetch(SERVER_URL + '/session/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromNumber, amount: pendingAmount })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+
+      const codeRow = document.getElementById('code-row');
+      codeRow.innerHTML = '';
+      String(data.code).split('').forEach((d, i) => {
+        const el = document.createElement('div');
+        el.className = 'code-digit';
+        el.style.animationDelay = (i * 0.05) + 's';
+        el.textContent = d;
+        codeRow.appendChild(el);
+      });
+      document.getElementById('confirm-title').textContent = 'Communique ce code';
+      document.getElementById('confirm-status-hint').textContent = "En attente que le destinataire l'entre et accepte…";
+
+      const s = getSocket();
+      s.emit('watch_code', data.code);
+      s.off('receiver_joined');
+      s.off('resolved');
+      s.on('receiver_joined', () => {
+        document.getElementById('confirm-status-hint').textContent = 'Destinataire connecté — en attente de sa réponse…';
+      });
+      s.on('resolved', (payload) => {
+        document.getElementById('confirm-overlay').classList.remove('show');
+        handleServerResolution(payload.accepted, pendingAmount, pendingFrom, pendingOther);
+      });
+    } catch (err) {
+      document.getElementById('confirm-status-hint').textContent = err.message === 'Failed to fetch'
+        ? "Impossible de joindre le serveur (vérifie ta connexion internet)."
+        : err.message;
+    }
+  }
+
+  function cancelConfirm(){
+    document.getElementById('confirm-overlay').classList.remove('show');
+    busy = false;
+    refreshCta();
+  }
+
+  function handleServerResolution(accepted, amount, from, to){
+    const status = document.getElementById('status');
+    const cta = document.getElementById('cta');
+
+    if (accepted) {
+      balances[from] -= amount;
+      updateBalanceDisplay(from);
+
+      const time = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+      addHistory(from, to, amount, time);
+
+      status.textContent = 'Paiement accepté par le destinataire, transmis en ' + (to === 'airtel' ? 'Airtel Money' : 'MTN MoMo') + '.';
+      cta.classList.remove('disabled');
+      cta.classList.add('success');
+      cta.textContent = 'Envoyé ✓';
+      pushNotification('✅', 'Votre transfert de ' + fmt(amount) + ' a été accepté et envoyé.');
+    } else {
+      status.textContent = 'Le destinataire a refusé ce paiement.';
+      cta.classList.remove('disabled');
+      cta.textContent = 'Rapprocher les téléphones';
+      pushNotification('⚠️', 'Votre transfert de ' + fmt(amount) + ' a été refusé par le destinataire.');
+    }
+
+    setTimeout(() => {
+      cta.classList.remove('success');
+      document.getElementById('amount').value = '';
+      busy = false;
+      refreshCta();
+      status.textContent = '';
+    }, 1800);
+  }
+
+  function addHistory(from, to, amount, time){
+    const list = document.getElementById('history-list');
+    const empty = list.querySelector('.empty-hist');
+    if (empty) empty.remove();
+
+    const row = document.createElement('div');
+    row.className = 'tx';
+    row.innerHTML = `
+      <div class="tx-dot ${from}">${from === 'airtel' ? 'AT' : 'MTN'}</div>
+      <div class="tx-info">
+        <div class="tx-title">Envoyé vers un compte ${to === 'airtel' ? 'Airtel' : 'MTN'}</div>
+        <div class="tx-sub">Débité depuis ${from === 'airtel' ? 'Airtel Money' : 'MTN MoMo'} · ${time}</div>
+      </div>
+      <div class="tx-amount">-${fmt(amount).replace(' FCFA','')}</div>
+    `;
+    list.prepend(row);
+  }
+
+  initApp();
+
+  // ---------- RECEIVE MODE ----------
+  let currentMode = 'send';
+  let activeSessionCode = null;
+
+  function setMode(mode){
+    currentMode = mode;
+    document.getElementById('mode-send-btn').classList.toggle('active', mode === 'send');
+    document.getElementById('mode-receive-btn').classList.toggle('active', mode === 'receive');
+    document.getElementById('send-screen').style.display = mode === 'send' ? '' : 'none';
+    document.getElementById('receive-screen').style.display = mode === 'receive' ? '' : 'none';
+  }
+
+  async function joinSession(){
+    const code = document.getElementById('join-code-input').value.trim();
+    const errEl = document.getElementById('join-error');
+    errEl.classList.remove('show');
+    if (!code) return;
+
+    const toOp = myAccounts.mtn && myAccounts.airtel
+      ? (myAccounts.mtn ? 'mtn' : 'airtel')  // si les deux existent, on prend mtn par défaut pour ce prototype
+      : (myAccounts.mtn ? 'mtn' : 'airtel');
+    const toNumber = myAccounts[toOp];
+    if (!toNumber) {
+      errEl.textContent = "Aucun compte enregistré pour recevoir.";
+      errEl.classList.add('show');
+      return;
+    }
+
+    try {
+      const res = await fetch(SERVER_URL + '/session/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, toNumber })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Session introuvable');
+
+      activeSessionCode = code;
+      document.getElementById('receive-waiting').style.display = 'none';
+      document.getElementById('receive-hint').textContent = 'Vérifie le code avec l\'expéditeur';
+
+      document.getElementById('incoming-badge').textContent = 'Vers ' + (toOp === 'mtn' ? 'MTN' : 'Airtel');
+      document.getElementById('incoming-amount').textContent = '+' + fmt(data.amount);
+
+      const codeRow = document.getElementById('receive-code-row');
+      codeRow.innerHTML = '';
+      String(code).split('').forEach((d, i) => {
+        const el = document.createElement('div');
+        el.className = 'code-digit';
+        el.style.animationDelay = (i * 0.05) + 's';
+        el.textContent = d;
+        codeRow.appendChild(el);
+      });
+
+      document.getElementById('receive-incoming').style.display = '';
+    } catch (err) {
+      errEl.textContent = err.message === 'Failed to fetch' ? 'Impossible de joindre le serveur.' : err.message;
+      errEl.classList.add('show');
+    }
+  }
+
+  async function resolveSession(accepted){
+    if (!activeSessionCode) return;
+    try {
+      const res = await fetch(SERVER_URL + '/session/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: activeSessionCode, accepted })
+      });
+      const data = await res.json();
+
+      if (accepted) {
+        const amountText = document.getElementById('incoming-amount').textContent.replace('+', '');
+        const time = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+        addReceiveHistory(document.getElementById('incoming-badge').textContent.includes('MTN') ? 'mtn' : 'airtel', 0, time, amountText);
+      }
+    } catch (err) {
+      // le serveur a peut-être déjà traité la demande via socket côté expéditeur ; on continue quand même
+    }
+
+    activeSessionCode = null;
+    document.getElementById('receive-incoming').style.display = 'none';
+    document.getElementById('receive-waiting').style.display = '';
+    document.getElementById('join-code-input').value = '';
+    document.getElementById('receive-hint').textContent = "Entre le code donné par l'expéditeur";
+  }
+
+  function addReceiveHistory(op, amount, time, amountText){
+    const list = document.getElementById('receive-history-list');
+    const empty = list.querySelector('.empty-hist');
+    if (empty) empty.remove();
+
+    const row = document.createElement('div');
+    row.className = 'tx';
+    row.innerHTML = `
+      <div class="tx-dot ${op}">${op === 'airtel' ? 'AT' : 'MTN'}</div>
+      <div class="tx-info">
+        <div class="tx-title">Paiement reçu</div>
+        <div class="tx-sub">${time}</div>
+      </div>
+      <div class="tx-amount" style="color:var(--success);">+${amountText || fmt(amount).replace(' FCFA','')}</div>
+    `;
+    list.prepend(row);
+  }
+
+  function acceptIncoming(){
+    resolveSession(true);
+  }
+
+  function declineIncoming(){
+    resolveSession(false);
+  }
+  // ---------- NOTIFICATIONS ----------
+  let notifications = [];
+
+  function pushNotification(icon, text){
+    notifications.unshift({ icon, text, time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) });
+    document.getElementById('notif-dot').style.display = '';
+    renderNotifications();
+  }
+
+  function renderNotifications(){
+    const list = document.getElementById('notif-list');
+    if (notifications.length === 0) {
+      list.innerHTML = '<div class="empty-hist">Aucune notification pour l\'instant.</div>';
+      return;
+    }
+    list.innerHTML = notifications.map(n => `
+      <div class="notif-item">
+        <div class="notif-icon">${n.icon}</div>
+        <div>
+          <div class="notif-text">${n.text}</div>
+          <div class="notif-time">${n.time}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function toggleNotifs(show){
+    document.getElementById('notif-overlay').classList.toggle('show', show);
+    if (show) document.getElementById('notif-dot').style.display = 'none';
+  }
+
+  // ---------- PROFIL ----------
+  function loadProfileName(){
+    return localStorage.getItem('rapproche_profile_name') || '';
+  }
+
+  function toggleProfile(show){
+    document.getElementById('profile-overlay').classList.toggle('show', show);
+    if (show) {
+      document.getElementById('profile-name').value = loadProfileName();
+      renderProfileComptes();
+      renderBeneficiaries();
+    }
+  }
+
+  function renderProfileComptes(){
+    const wrap = document.getElementById('profile-comptes');
+    let html = '';
+    if (myAccounts.mtn) html += `<div class="profile-compte-row"><span class="profile-compte-dot" style="background:var(--mtn-yellow);"></span> MTN MoMo — ${myAccounts.mtn}</div>`;
+    if (myAccounts.airtel) html += `<div class="profile-compte-row"><span class="profile-compte-dot" style="background:var(--airtel-red);"></span> Airtel Money — ${myAccounts.airtel}</div>`;
+    wrap.innerHTML = html;
+  }
+
+  function saveProfile(){
+    const name = document.getElementById('profile-name').value.trim();
+    localStorage.setItem('rapproche_profile_name', name);
+    pushNotification('👤', 'Profil mis à jour.');
+    toggleProfile(false);
+  }
+
+  // ---------- BÉNÉFICIAIRES ----------
+  let benefOpSelected = 'mtn';
+
+  function setBenefOp(op){
+    benefOpSelected = op;
+    document.getElementById('benef-op-mtn').classList.toggle('active', op === 'mtn');
+    document.getElementById('benef-op-airtel').classList.toggle('active', op === 'airtel');
+  }
+
+  function loadBeneficiaries(){
+    const saved = localStorage.getItem('rapproche_beneficiaries');
+    return saved ? JSON.parse(saved) : [];
+  }
+
+  function saveBeneficiaries(list){
+    localStorage.setItem('rapproche_beneficiaries', JSON.stringify(list));
+  }
+
+  function renderBeneficiaries(){
+    const list = loadBeneficiaries();
+    const wrap = document.getElementById('beneficiaries-list');
+    if (list.length === 0) {
+      wrap.innerHTML = '<div class="empty-hist">Aucun bénéficiaire enregistré.</div>';
+      return;
+    }
+    wrap.innerHTML = list.map((b, i) => `
+      <div class="beneficiary-row">
+        <div class="beneficiary-avatar" style="background:${b.op === 'airtel' ? 'rgba(227,30,60,0.18); color:#FF6B84' : 'rgba(255,204,0,0.18); color:#FFCC00'};">${b.name.slice(0,2).toUpperCase()}</div>
+        <div class="beneficiary-info">
+          <div class="beneficiary-name">${b.name}</div>
+          <div class="beneficiary-sub">${b.op === 'airtel' ? 'Airtel' : 'MTN'} · ${b.phone}</div>
+        </div>
+        <button class="beneficiary-remove" onclick="removeBeneficiary(${i})">Retirer</button>
+      </div>
+    `).join('');
+  }
+
+  function addBeneficiary(){
+    const name = document.getElementById('benef-name').value.trim();
+    const phone = document.getElementById('benef-phone').value.trim();
+    if (!name || !phone) return;
+
+    const list = loadBeneficiaries();
+    list.push({ name, phone, op: benefOpSelected });
+    saveBeneficiaries(list);
+
+    document.getElementById('benef-name').value = '';
+    document.getElementById('benef-phone').value = '';
+    renderBeneficiaries();
+    pushNotification('➕', 'Nouveau bénéficiaire ajouté : ' + name + '.');
+  }
+
+  function removeBeneficiary(i){
+    const list = loadBeneficiaries();
+    list.splice(i, 1);
+    saveBeneficiaries(list);
+    renderBeneficiaries();
+  }
+</script>
+
+</body>
+</html>
