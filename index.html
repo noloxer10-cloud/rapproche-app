@@ -1434,10 +1434,6 @@
     }, 950);
   }
 
-  const DEFAULT_PIN = '1234';
-  function getSavedPin(){
-    return localStorage.getItem('rapproche_pin') || DEFAULT_PIN;
-  }
   let pinBuffer = '';
 
   function openPin(){
@@ -1459,20 +1455,10 @@
     pinBuffer += digit;
     renderPinDots();
     if (pinBuffer.length === 4) {
+      const enteredPin = pinBuffer;
       setTimeout(() => {
-        if (pinBuffer === getSavedPin()) {
-          document.getElementById('pin-overlay').classList.remove('show');
-          openConfirm();
-        } else {
-          const dotsWrap = document.getElementById('pin-dots');
-          dotsWrap.classList.add('shake');
-          document.getElementById('pin-error').classList.add('show');
-          setTimeout(() => {
-            dotsWrap.classList.remove('shake');
-            pinBuffer = '';
-            renderPinDots();
-          }, 400);
-        }
+        document.getElementById('pin-overlay').classList.remove('show');
+        openConfirm(enteredPin);
       }, 150);
     }
   }
@@ -1509,8 +1495,7 @@
     settingsBuffer = '';
     document.getElementById('settings-step-label').textContent = 'Étape 1/2 — Choisis un nouveau code';
     document.getElementById('settings-error').classList.remove('show');
-    document.getElementById('settings-current').textContent =
-      localStorage.getItem('rapproche_pin') ? 'Un code personnel est déjà enregistré.' : 'Code actuel par défaut : 1234 (démo)';
+    document.getElementById('settings-current').textContent = 'Code par défaut : 1234 (démo), modifiable ci-dessous.';
     renderSettingsDots();
   }
 
@@ -1533,11 +1518,7 @@
           renderSettingsDots();
         } else {
           if (settingsBuffer === settingsFirstEntry) {
-            localStorage.setItem('rapproche_pin', settingsBuffer);
-            document.getElementById('settings-current').textContent = 'Nouveau code PIN enregistré ✓';
-            pushNotification('🔒', 'Ton code PIN a été mis à jour.');
-            document.getElementById('settings-error').classList.remove('show');
-            setTimeout(() => toggleSettings(false), 900);
+            savePinToServer(settingsBuffer);
           } else {
             document.getElementById('settings-error').classList.add('show');
             const dotsWrap = document.getElementById('settings-dots-1');
@@ -1549,6 +1530,26 @@
           }
         }
       }, 150);
+    }
+  }
+
+  async function savePinToServer(newPin){
+    document.getElementById('settings-current').textContent = 'Enregistrement…';
+    const numbers = [myAccounts.mtn, myAccounts.airtel].filter(Boolean);
+    try {
+      for (const number of numbers) {
+        await fetch(SERVER_URL + '/account/set-pin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number, pin: newPin })
+        });
+      }
+      document.getElementById('settings-current').textContent = 'Nouveau code PIN enregistré ✓';
+      pushNotification('🔒', 'Ton code PIN a été mis à jour.');
+      document.getElementById('settings-error').classList.remove('show');
+      setTimeout(() => toggleSettings(false), 900);
+    } catch (err) {
+      document.getElementById('settings-current').textContent = 'Impossible de joindre le serveur, réessaie.';
     }
   }
 
@@ -1564,7 +1565,7 @@
     return socket;
   }
 
-  async function openConfirm(){
+  async function openConfirm(enteredPin){
     document.getElementById('confirm-title').textContent = 'Envoi en cours…';
     document.getElementById('confirm-contact').textContent = 'Vers un compte ' + (pendingOther === 'airtel' ? 'Airtel' : 'MTN');
     document.getElementById('confirm-amount').textContent = fmt(pendingAmount);
@@ -1582,10 +1583,31 @@
       const res = await fetch(SERVER_URL + '/session/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fromNumber, amount: pendingAmount })
+        body: JSON.stringify({ fromNumber, amount: pendingAmount, pin: enteredPin })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          // PIN incorrect : retour à l'écran PIN pour réessayer
+          document.getElementById('confirm-overlay').classList.remove('show');
+          openPin();
+          document.getElementById('pin-error').textContent = data.error || 'PIN incorrect, réessaie.';
+          document.getElementById('pin-error').classList.add('show');
+          const dotsWrap = document.getElementById('pin-dots');
+          dotsWrap.classList.add('shake');
+          setTimeout(() => dotsWrap.classList.remove('shake'), 400);
+          return;
+        }
+        if (res.status === 423) {
+          // Compte temporairement bloqué
+          document.getElementById('confirm-title').textContent = 'Compte bloqué';
+          document.getElementById('confirm-status-hint').textContent = data.error;
+          busy = false;
+          return;
+        }
+        throw new Error(data.error || 'Erreur serveur');
+      }
 
       const codeRow = document.getElementById('code-row');
       codeRow.innerHTML = '';
@@ -1597,7 +1619,7 @@
         codeRow.appendChild(el);
       });
       document.getElementById('confirm-title').textContent = 'Communique ce code';
-      document.getElementById('confirm-status-hint').textContent = "En attente que le destinataire l'entre et accepte…";
+      document.getElementById('confirm-status-hint').textContent = "En attente que le destinataire l'entre et accepte… (valable 5 min)";
 
       const s = getSocket();
       s.emit('watch_code', data.code);
