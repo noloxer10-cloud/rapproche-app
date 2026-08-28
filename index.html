@@ -1455,11 +1455,61 @@
     pinBuffer += digit;
     renderPinDots();
     if (pinBuffer.length === 4) {
-      const enteredPin = pinBuffer;
-      setTimeout(() => {
-        document.getElementById('pin-overlay').classList.remove('show');
-        openConfirm(enteredPin);
-      }, 150);
+      setTimeout(() => attemptSend(pinBuffer), 150);
+    }
+  }
+
+  async function attemptSend(enteredPin){
+    document.getElementById('pin-error').classList.remove('show');
+    document.getElementById('pin-sub').textContent = 'Vérification…';
+
+    const fromNumber = myAccounts[pendingFrom];
+    if (!fromNumber) {
+      document.getElementById('pin-error').textContent = "Aucun numéro " + (pendingFrom === 'airtel' ? 'Airtel' : 'MTN') + " enregistré.";
+      document.getElementById('pin-error').classList.add('show');
+      return;
+    }
+
+    try {
+      const res = await fetch(SERVER_URL + '/session/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromNumber, amount: pendingAmount, pin: enteredPin })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 423) {
+          document.getElementById('pin-error').textContent = data.error || 'PIN incorrect, réessaie.';
+          document.getElementById('pin-error').classList.add('show');
+          const dotsWrap = document.getElementById('pin-dots');
+          dotsWrap.classList.add('shake');
+          setTimeout(() => {
+            dotsWrap.classList.remove('shake');
+            pinBuffer = '';
+            renderPinDots();
+            document.getElementById('pin-sub').textContent =
+              'Confirme l\'envoi depuis ton compte ' + (pendingFrom === 'airtel' ? 'Airtel' : 'MTN');
+          }, 400);
+          return;
+        }
+        document.getElementById('pin-error').textContent = data.error || 'Erreur serveur';
+        document.getElementById('pin-error').classList.add('show');
+        pinBuffer = '';
+        renderPinDots();
+        return;
+      }
+
+      // PIN correct et session créée : on passe à l'écran du code
+      document.getElementById('pin-overlay').classList.remove('show');
+      openConfirm(data.code);
+    } catch (err) {
+      document.getElementById('pin-error').textContent = err.message === 'Failed to fetch'
+        ? "Impossible de joindre le serveur (vérifie ta connexion internet)."
+        : err.message;
+      document.getElementById('pin-error').classList.add('show');
+      pinBuffer = '';
+      renderPinDots();
     }
   }
 
@@ -1565,78 +1615,34 @@
     return socket;
   }
 
-  async function openConfirm(enteredPin){
-    document.getElementById('confirm-title').textContent = 'Envoi en cours…';
-    document.getElementById('confirm-contact').textContent = 'Vers un compte ' + (pendingOther === 'airtel' ? 'Airtel' : 'MTN');
+  function openConfirm(code){
+    document.getElementById('confirm-title').textContent = 'Communique ce code';
+    document.getElementById('confirm-contact').textContent = 'Depuis ton compte ' + (pendingFrom === 'airtel' ? 'Airtel' : 'MTN');
     document.getElementById('confirm-amount').textContent = fmt(pendingAmount);
-    document.getElementById('confirm-status-hint').textContent = 'Connexion au serveur…';
-    document.getElementById('code-row').innerHTML = '';
+    document.getElementById('confirm-status-hint').textContent = "En attente que le destinataire l'entre et accepte… (valable 5 min)";
     document.getElementById('confirm-overlay').classList.add('show');
 
-    const fromNumber = myAccounts[pendingFrom];
-    if (!fromNumber) {
-      document.getElementById('confirm-status-hint').textContent = "Aucun numéro " + (pendingFrom === 'airtel' ? 'Airtel' : 'MTN') + " enregistré.";
-      return;
-    }
+    const codeRow = document.getElementById('code-row');
+    codeRow.innerHTML = '';
+    String(code).split('').forEach((d, i) => {
+      const el = document.createElement('div');
+      el.className = 'code-digit';
+      el.style.animationDelay = (i * 0.05) + 's';
+      el.textContent = d;
+      codeRow.appendChild(el);
+    });
 
-    try {
-      const res = await fetch(SERVER_URL + '/session/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fromNumber, amount: pendingAmount, pin: enteredPin })
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          // PIN incorrect : retour à l'écran PIN pour réessayer
-          document.getElementById('confirm-overlay').classList.remove('show');
-          openPin();
-          document.getElementById('pin-error').textContent = data.error || 'PIN incorrect, réessaie.';
-          document.getElementById('pin-error').classList.add('show');
-          const dotsWrap = document.getElementById('pin-dots');
-          dotsWrap.classList.add('shake');
-          setTimeout(() => dotsWrap.classList.remove('shake'), 400);
-          return;
-        }
-        if (res.status === 423) {
-          // Compte temporairement bloqué
-          document.getElementById('confirm-title').textContent = 'Compte bloqué';
-          document.getElementById('confirm-status-hint').textContent = data.error;
-          busy = false;
-          return;
-        }
-        throw new Error(data.error || 'Erreur serveur');
-      }
-
-      const codeRow = document.getElementById('code-row');
-      codeRow.innerHTML = '';
-      String(data.code).split('').forEach((d, i) => {
-        const el = document.createElement('div');
-        el.className = 'code-digit';
-        el.style.animationDelay = (i * 0.05) + 's';
-        el.textContent = d;
-        codeRow.appendChild(el);
-      });
-      document.getElementById('confirm-title').textContent = 'Communique ce code';
-      document.getElementById('confirm-status-hint').textContent = "En attente que le destinataire l'entre et accepte… (valable 5 min)";
-
-      const s = getSocket();
-      s.emit('watch_code', data.code);
-      s.off('receiver_joined');
-      s.off('resolved');
-      s.on('receiver_joined', () => {
-        document.getElementById('confirm-status-hint').textContent = 'Destinataire connecté — en attente de sa réponse…';
-      });
-      s.on('resolved', (payload) => {
-        document.getElementById('confirm-overlay').classList.remove('show');
-        handleServerResolution(payload.accepted, pendingAmount, pendingFrom, pendingOther);
-      });
-    } catch (err) {
-      document.getElementById('confirm-status-hint').textContent = err.message === 'Failed to fetch'
-        ? "Impossible de joindre le serveur (vérifie ta connexion internet)."
-        : err.message;
-    }
+    const s = getSocket();
+    s.emit('watch_code', code);
+    s.off('receiver_joined');
+    s.off('resolved');
+    s.on('receiver_joined', () => {
+      document.getElementById('confirm-status-hint').textContent = 'Destinataire connecté — en attente de sa réponse…';
+    });
+    s.on('resolved', (payload) => {
+      document.getElementById('confirm-overlay').classList.remove('show');
+      handleServerResolution(payload.accepted, pendingAmount, pendingFrom, pendingOther);
+    });
   }
 
   function cancelConfirm(){
