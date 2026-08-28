@@ -556,6 +556,34 @@
     text-align:center; font-size: 12px; color:#6E6A78; margin-bottom: 16px;
   }
 
+  .settings-menu{ margin: 16px 0 20px; }
+  .settings-row{
+    width:100%;
+    display:flex; align-items:center; gap:12px;
+    background: var(--dusk);
+    border-radius: 14px;
+    padding: 14px 14px;
+    margin-bottom: 8px;
+    text-align:left;
+  }
+  .settings-row:active{ background: rgba(255,255,255,0.06); }
+  .settings-row-icon{
+    width:22px; height:22px; flex-shrink:0;
+    color: #C8C4D0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  span.settings-row-icon[style]{
+    width:18px; height:18px; border-radius:50%; flex-shrink:0;
+  }
+  .settings-row-text{ flex:1; display:flex; flex-direction:column; gap:2px; }
+  .settings-row-title{ font-size: 14px; font-weight:600; color: var(--ink); }
+  .settings-row-sub{ font-size: 11.5px; color:#8A8694; }
+  .settings-row-check{
+    font-size: 14px; color: var(--success);
+    opacity:0; transition: opacity 0.15s ease;
+  }
+  .settings-row-check.show{ opacity:1; }
+
   .help-overlay{
     position: fixed; inset:0;
     background: rgba(10,9,12,0.7);
@@ -585,6 +613,14 @@
     color: #C8C4D0; font-size: 13px;
   }
   .help-body{ overflow-y:auto; }
+  .settings-back{
+    background: none;
+    color:#8A8694;
+    font-size: 13px;
+    padding: 4px 0;
+    margin-bottom: 8px;
+    text-align:left;
+  }
   .help-block{ margin-bottom: 18px; }
   .help-block-title{
     font-family: var(--font-display);
@@ -978,6 +1014,68 @@
 <div class="settings-overlay" id="settings-overlay">
   <div class="confirm-sheet">
     <div class="confirm-title">Paramètres</div>
+
+    <div class="settings-menu">
+      <button class="settings-row" onclick="toggleSettings(false); editAccounts()">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+        <span class="settings-row-text">
+          <span class="settings-row-title">Ajouter un numéro</span>
+          <span class="settings-row-sub">Relier un nouveau compte MTN ou Airtel</span>
+        </span>
+      </button>
+      <button class="settings-row" onclick="toggleSettings(false); editAccounts()">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
+        <span class="settings-row-text">
+          <span class="settings-row-title">Changer de numéro</span>
+          <span class="settings-row-sub" id="settings-numbers-sub">Modifier un compte déjà enregistré</span>
+        </span>
+      </button>
+      <button class="settings-row" onclick="toggleSettings(false); toggleSettingsPin(true)">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <span class="settings-row-text">
+          <span class="settings-row-title">Code PIN</span>
+          <span class="settings-row-sub">Créer ou modifier ton code de confirmation</span>
+        </span>
+      </button>
+      <button class="settings-row" onclick="toggleSettings(false); toggleThemeMenu(true)">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5"/><circle cx="17.5" cy="10.5" r="0.5"/><circle cx="8.5" cy="7.5" r="0.5"/><circle cx="6.5" cy="12.5" r="0.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1.1-.2-.3-.4-.6-.4-1 0-.8.7-1.4 1.5-1.4H16c3.3 0 6-2.7 6-6 0-4.4-4.5-8-10-8z"/></svg></span>
+        <span class="settings-row-text">
+          <span class="settings-row-title">Thème</span>
+          <span class="settings-row-sub" id="settings-theme-sub">Couleur d'accent de l'appli</span>
+        </span>
+      </button>
+      <button class="settings-row" onclick="toggleSettings(false); toggleNotifMenu(true)">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+        <span class="settings-row-text">
+          <span class="settings-row-title">Notifications</span>
+          <span class="settings-row-sub" id="settings-notif-sub">Activées</span>
+        </span>
+      </button>
+      <button class="settings-row" onclick="toggleSettings(false); toggleSecurityMenu(true)">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+        <span class="settings-row-text">
+          <span class="settings-row-title">Sécurité</span>
+          <span class="settings-row-sub">Déconnexion, effacer mes données</span>
+        </span>
+      </button>
+      <button class="settings-row" onclick="toggleSettings(false); toggleHelp(true)">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+        <span class="settings-row-text">
+          <span class="settings-row-title">À propos</span>
+          <span class="settings-row-sub">Version, mode d'emploi</span>
+        </span>
+      </button>
+    </div>
+
+    <button class="cancel-btn" onclick="toggleSettings(false)">Fermer</button>
+  </div>
+</div>
+
+<!-- ---------- CODE PIN ---------- -->
+<div class="settings-overlay" id="settings-pin-overlay">
+  <div class="confirm-sheet">
+    <button class="settings-back" onclick="toggleSettingsPin(false)">← Retour</button>
+    <div class="confirm-title">Code PIN</div>
     <div class="confirm-sub" id="settings-mode-label">Définir mon code PIN</div>
 
     <div class="pin-dots" id="settings-dots-1">
@@ -1002,8 +1100,66 @@
     </div>
 
     <div class="settings-current" id="settings-current"></div>
-    <button class="confirm-btn" style="background:var(--dusk-2); color:var(--ink); margin-bottom:10px;" onclick="editAccounts()">Gérer mes numéros</button>
-    <button class="cancel-btn" onclick="toggleSettings(false)">Fermer</button>
+  </div>
+</div>
+
+<!-- ---------- THÈME ---------- -->
+<div class="settings-overlay" id="theme-overlay">
+  <div class="confirm-sheet">
+    <button class="settings-back" onclick="toggleThemeMenu(false)">← Retour</button>
+    <div class="confirm-title">Thème</div>
+    <div class="confirm-sub">Choisis la couleur d'accent de l'appli</div>
+
+    <div class="settings-menu" style="margin-top:16px;">
+      <button class="settings-row" onclick="setTheme('gold')">
+        <span class="settings-row-icon" style="background:#FFCC00;"></span>
+        <span class="settings-row-text"><span class="settings-row-title">Doré (par défaut)</span></span>
+        <span id="theme-check-gold" class="settings-row-check">✓</span>
+      </button>
+      <button class="settings-row" onclick="setTheme('emerald')">
+        <span class="settings-row-icon" style="background:#35C48A;"></span>
+        <span class="settings-row-text"><span class="settings-row-title">Émeraude</span></span>
+        <span id="theme-check-emerald" class="settings-row-check">✓</span>
+      </button>
+      <button class="settings-row" onclick="setTheme('red')">
+        <span class="settings-row-icon" style="background:#E31E3C;"></span>
+        <span class="settings-row-text"><span class="settings-row-title">Rouge Airtel</span></span>
+        <span id="theme-check-red" class="settings-row-check">✓</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------- NOTIFICATIONS ---------- -->
+<div class="settings-overlay" id="notif-settings-overlay">
+  <div class="confirm-sheet">
+    <button class="settings-back" onclick="toggleNotifMenu(false)">← Retour</button>
+    <div class="confirm-title">Notifications</div>
+    <div class="confirm-sub">Recevoir les alertes de paiement et de sécurité</div>
+
+    <button class="settings-row" style="margin-top:16px;" onclick="toggleNotifMute()">
+      <span class="settings-row-text"><span class="settings-row-title" id="notif-mute-label">Notifications activées</span></span>
+      <span id="notif-mute-check" class="settings-row-check">✓</span>
+    </button>
+  </div>
+</div>
+
+<!-- ---------- SÉCURITÉ ---------- -->
+<div class="settings-overlay" id="security-overlay">
+  <div class="confirm-sheet">
+    <button class="settings-back" onclick="toggleSecurityMenu(false)">← Retour</button>
+    <div class="confirm-title">Sécurité</div>
+
+    <div class="settings-menu" style="margin-top:16px;">
+      <button class="settings-row" onclick="doLogout()">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+        <span class="settings-row-text"><span class="settings-row-title">Se déconnecter</span><span class="settings-row-sub">Revenir à l'écran de création de compte</span></span>
+      </button>
+      <button class="settings-row" onclick="confirmClearData()">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></span>
+        <span class="settings-row-text"><span class="settings-row-title">Effacer toutes mes données</span><span class="settings-row-sub">Comptes, bénéficiaires, historique, préférences</span></span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1242,9 +1398,12 @@
     document.getElementById('onboard-error').classList.remove('show');
 
     pendingNumbers = { mtn: mtnNum || null, airtel: airtelNum || null };
+
+    // On ne redemande une vérification SMS que pour un numéro nouveau ou modifié —
+    // un numéro déjà enregistré et inchangé n'a pas besoin d'être revérifié.
     verifyQueue = [];
-    if (mtnNum) verifyQueue.push('mtn');
-    if (airtelNum) verifyQueue.push('airtel');
+    if (mtnNum && mtnNum !== myAccounts.mtn) verifyQueue.push('mtn');
+    if (airtelNum && airtelNum !== myAccounts.airtel) verifyQueue.push('airtel');
 
     nextVerification();
   }
@@ -1435,11 +1594,22 @@
   }
 
   let pinBuffer = '';
+  let pinContext = 'send'; // 'send' ou 'delete'
 
   function openPin(){
+    pinContext = 'send';
     pinBuffer = '';
     document.getElementById('pin-sub').textContent =
       'Confirme l\'envoi depuis ton compte ' + (pendingFrom === 'airtel' ? 'Airtel' : 'MTN');
+    document.getElementById('pin-error').classList.remove('show');
+    renderPinDots();
+    document.getElementById('pin-overlay').classList.add('show');
+  }
+
+  function openPinForDelete(){
+    pinContext = 'delete';
+    pinBuffer = '';
+    document.getElementById('pin-sub').textContent = 'Confirme ton code PIN pour effacer tes données';
     document.getElementById('pin-error').classList.remove('show');
     renderPinDots();
     document.getElementById('pin-overlay').classList.add('show');
@@ -1455,7 +1625,58 @@
     pinBuffer += digit;
     renderPinDots();
     if (pinBuffer.length === 4) {
-      setTimeout(() => attemptSend(pinBuffer), 150);
+      if (pinContext === 'delete') {
+        setTimeout(() => attemptDeleteVerify(pinBuffer), 150);
+      } else {
+        setTimeout(() => attemptSend(pinBuffer), 150);
+      }
+    }
+  }
+
+  async function attemptDeleteVerify(enteredPin){
+    document.getElementById('pin-error').classList.remove('show');
+    document.getElementById('pin-sub').textContent = 'Vérification…';
+
+    const number = myAccounts.mtn || myAccounts.airtel;
+    if (!number) {
+      document.getElementById('pin-overlay').classList.remove('show');
+      localStorage.clear();
+      location.reload();
+      return;
+    }
+
+    try {
+      const res = await fetch(SERVER_URL + '/account/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number, pin: enteredPin })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        document.getElementById('pin-error').textContent = data.error || 'PIN incorrect, réessaie.';
+        document.getElementById('pin-error').classList.add('show');
+        const dotsWrap = document.getElementById('pin-dots');
+        dotsWrap.classList.add('shake');
+        setTimeout(() => {
+          dotsWrap.classList.remove('shake');
+          pinBuffer = '';
+          renderPinDots();
+          document.getElementById('pin-sub').textContent = 'Confirme ton code PIN pour effacer tes données';
+        }, 400);
+        return;
+      }
+
+      document.getElementById('pin-overlay').classList.remove('show');
+      localStorage.clear();
+      location.reload();
+    } catch (err) {
+      document.getElementById('pin-error').textContent = err.message === 'Failed to fetch'
+        ? "Impossible de joindre le serveur (vérifie ta connexion internet)."
+        : err.message;
+      document.getElementById('pin-error').classList.add('show');
+      pinBuffer = '';
+      renderPinDots();
     }
   }
 
@@ -1521,8 +1742,10 @@
   function cancelPin(){
     document.getElementById('pin-overlay').classList.remove('show');
     pinBuffer = '';
-    busy = false;
-    refreshCta();
+    if (pinContext === 'send') {
+      busy = false;
+      refreshCta();
+    }
   }
 
   function toggleHelp(show){
@@ -1536,6 +1759,10 @@
 
   function toggleSettings(show){
     document.getElementById('settings-overlay').classList.toggle('show', show);
+  }
+
+  function toggleSettingsPin(show){
+    document.getElementById('settings-pin-overlay').classList.toggle('show', show);
     if (show) resetSettingsFlow();
   }
 
@@ -1597,7 +1824,7 @@
       document.getElementById('settings-current').textContent = 'Nouveau code PIN enregistré ✓';
       pushNotification('🔒', 'Ton code PIN a été mis à jour.');
       document.getElementById('settings-error').classList.remove('show');
-      setTimeout(() => toggleSettings(false), 900);
+      setTimeout(() => toggleSettingsPin(false), 900);
     } catch (err) {
       document.getElementById('settings-current').textContent = 'Impossible de joindre le serveur, réessaie.';
     }
@@ -1819,6 +2046,7 @@
   let notifications = [];
 
   function pushNotification(icon, text){
+    if (isNotifMuted()) return;
     notifications.unshift({ icon, text, time: new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) });
     document.getElementById('notif-dot').style.display = '';
     renderNotifications();
@@ -1933,6 +2161,79 @@
     saveBeneficiaries(list);
     renderBeneficiaries();
   }
+
+  // ---------- THÈME ----------
+  const THEMES = {
+    gold:    { accent: '#FFCC00' },
+    emerald: { accent: '#35C48A' },
+    red:     { accent: '#E31E3C' },
+  };
+
+  function toggleThemeMenu(show){
+    document.getElementById('theme-overlay').classList.toggle('show', show);
+    if (show) renderThemeChecks();
+  }
+
+  function renderThemeChecks(){
+    const current = localStorage.getItem('rapproche_theme') || 'gold';
+    Object.keys(THEMES).forEach(t => {
+      const el = document.getElementById('theme-check-' + t);
+      if (el) el.classList.toggle('show', t === current);
+    });
+  }
+
+  function setTheme(theme){
+    localStorage.setItem('rapproche_theme', theme);
+    applyTheme(theme);
+    renderThemeChecks();
+  }
+
+  function applyTheme(theme){
+    const accent = (THEMES[theme] || THEMES.gold).accent;
+    document.documentElement.style.setProperty('--mtn-yellow', accent);
+    const sub = document.getElementById('settings-theme-sub');
+    if (sub) sub.textContent = theme === 'gold' ? 'Doré (par défaut)' : (theme === 'emerald' ? 'Émeraude' : 'Rouge Airtel');
+  }
+
+  // ---------- NOTIFICATIONS ----------
+  function isNotifMuted(){
+    return localStorage.getItem('rapproche_notif_muted') === '1';
+  }
+
+  function toggleNotifMenu(show){
+    document.getElementById('notif-settings-overlay').classList.toggle('show', show);
+    if (show) renderNotifMuteState();
+  }
+
+  function renderNotifMuteState(){
+    const muted = isNotifMuted();
+    document.getElementById('notif-mute-label').textContent = muted ? 'Notifications désactivées' : 'Notifications activées';
+    document.getElementById('notif-mute-check').classList.toggle('show', !muted);
+    const sub = document.getElementById('settings-notif-sub');
+    if (sub) sub.textContent = muted ? 'Désactivées' : 'Activées';
+  }
+
+  function toggleNotifMute(){
+    localStorage.setItem('rapproche_notif_muted', isNotifMuted() ? '0' : '1');
+    renderNotifMuteState();
+  }
+
+  // ---------- SÉCURITÉ ----------
+  function toggleSecurityMenu(show){
+    document.getElementById('security-overlay').classList.toggle('show', show);
+  }
+
+  function doLogout(){
+    localStorage.removeItem('rapproche_accounts');
+    location.reload();
+  }
+
+  function confirmClearData(){
+    toggleSecurityMenu(false);
+    openPinForDelete();
+  }
+
+  applyTheme(localStorage.getItem('rapproche_theme') || 'gold');
 </script>
 
 </body>
