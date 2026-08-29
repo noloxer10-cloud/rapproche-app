@@ -493,6 +493,51 @@
     display:flex; flex-direction:column; align-items:center; gap:12px;
     margin: 28px 20px 0;
   }
+
+  .receive-op-choice{
+    display:flex; gap:10px;
+    margin: 20px 16px 0;
+  }
+  .receive-op-btn{
+    flex:1;
+    background: var(--dusk-2);
+    border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 12px 0;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    font-family: var(--font-display); font-weight:700; font-size:15px;
+    color:#8A8694;
+  }
+  .receive-op-btn.active{
+    border-color: var(--mtn-yellow);
+    color: var(--ink);
+  }
+  .receive-op-sub{ font-size:10.5px; font-weight:500; opacity:0.8; }
+
+  .incoming-from-name{
+    font-family: var(--font-display); font-weight:700; font-size: 15px;
+    color: var(--ink); margin-top: 6px;
+  }
+
+  .receive-cancelled{
+    margin: 30px 20px 0; text-align:center;
+  }
+
+  .final-confirm-box{
+    background: var(--dusk-2);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin: 16px 0 20px;
+  }
+  .final-confirm-row{
+    display:flex; align-items:baseline; justify-content:space-between;
+    font-size: 13px; color:#B4B0BC;
+    padding: 6px 0;
+  }
+  .final-confirm-row:not(:last-child){ border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .final-confirm-row span:last-child{ color: var(--ink); font-weight:600; }
+
+
   .waiting-dot{
     width: 10px; height:10px; border-radius:50%;
     background: var(--success);
@@ -1352,6 +1397,22 @@
   </div>
 </div>
 
+<div class="confirm-overlay" id="final-confirm-overlay">
+  <div class="confirm-sheet">
+    <div class="confirm-title">Dernière vérification</div>
+    <div class="confirm-sub">Confirme avant que l'argent soit crédité</div>
+
+    <div class="final-confirm-box">
+      <div class="final-confirm-row"><span>De la part de</span><span id="final-confirm-name">—</span></div>
+      <div class="final-confirm-row"><span>Montant</span><span id="final-confirm-amount">0 FCFA</span></div>
+      <div class="final-confirm-row"><span>Heure</span><span id="final-confirm-time">—</span></div>
+    </div>
+
+    <button class="confirm-btn" onclick="finalizeAccept()">Oui, confirmer</button>
+    <button class="cancel-btn" onclick="cancelFinalConfirm()">Annuler</button>
+  </div>
+</div>
+
 <div class="history">
   <div class="history-header">
     <div class="history-title">Transactions récentes</div>
@@ -1373,7 +1434,17 @@
 
 <div id="receive-screen" style="display:none;">
 
-  <div class="tap-stage" style="margin-top:22px;">
+  <div class="receive-op-choice" id="receive-op-choice">
+    <button class="receive-op-btn" id="receive-op-mtn" onclick="selectReceiveOp('mtn')">
+      <span>MTN</span><span class="receive-op-sub">MoMo</span>
+    </button>
+    <button class="receive-op-btn" id="receive-op-airtel" onclick="selectReceiveOp('airtel')">
+      <span>Airtel</span><span class="receive-op-sub">Money</span>
+    </button>
+  </div>
+  <div class="hint-row" style="margin-top:6px;">Choisis le compte qui va recevoir</div>
+
+  <div class="tap-stage" style="margin-top:18px;">
     <div class="phone left"></div>
     <div class="phone right"></div>
   </div>
@@ -1389,6 +1460,7 @@
 
   <div class="receive-incoming" id="receive-incoming" style="display:none;">
     <div class="incoming-badge" id="incoming-badge">Depuis MTN</div>
+    <div class="incoming-from-name" id="incoming-from-name"></div>
     <div class="incoming-amount" id="incoming-amount">+5 000 FCFA</div>
     <div class="incoming-sub">Vérifie que ce code correspond à celui affiché chez l'expéditeur</div>
 
@@ -1396,6 +1468,11 @@
 
     <button class="confirm-btn" onclick="acceptIncoming()">Accepter et encaisser</button>
     <button class="cancel-btn" onclick="declineIncoming()">Refuser</button>
+  </div>
+
+  <div class="receive-cancelled" id="receive-cancelled" style="display:none;">
+    <div class="incoming-sub">⚠️ L'expéditeur a annulé cette transaction.</div>
+    <button class="confirm-btn" style="max-width:220px; margin:12px auto 0;" onclick="backToWaiting()">Retour</button>
   </div>
 
   <div class="receive-history">
@@ -1553,6 +1630,24 @@
     if (hasMtn && !hasAirtel) selected = 'mtn';
     if (hasAirtel && !hasMtn) selected = 'airtel';
     selectOperator(selected);
+
+    document.getElementById('receive-op-mtn').style.display = hasMtn ? '' : 'none';
+    document.getElementById('receive-op-airtel').style.display = hasAirtel ? '' : 'none';
+    document.getElementById('receive-op-choice').style.display = (hasMtn && hasAirtel) ? '' : 'none';
+    receiveSelected = hasMtn ? 'mtn' : (hasAirtel ? 'airtel' : null);
+    renderReceiveOpChoice();
+  }
+
+  let receiveSelected = 'mtn';
+
+  function selectReceiveOp(op){
+    receiveSelected = op;
+    renderReceiveOpChoice();
+  }
+
+  function renderReceiveOpChoice(){
+    document.getElementById('receive-op-mtn').classList.toggle('active', receiveSelected === 'mtn');
+    document.getElementById('receive-op-airtel').classList.toggle('active', receiveSelected === 'airtel');
   }
 
   function fmt(n){ return n.toLocaleString('fr-FR').replace(/,/g,' ') + ' FCFA'; }
@@ -1754,7 +1849,7 @@
       const res = await fetch(SERVER_URL + '/session/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fromNumber, amount: pendingAmount, pin: enteredPin })
+        body: JSON.stringify({ fromNumber, fromName: loadProfileName() || null, amount: pendingAmount, pin: enteredPin })
       });
       const data = await res.json();
 
@@ -1950,7 +2045,10 @@
     return socket;
   }
 
+  let currentSendCode = null;
+
   function openConfirm(code){
+    currentSendCode = code;
     document.getElementById('confirm-title').textContent = 'Communique ce code';
     document.getElementById('confirm-contact').textContent = 'Depuis ton compte ' + (pendingFrom === 'airtel' ? 'Airtel' : 'MTN');
     document.getElementById('confirm-amount').textContent = fmt(pendingAmount);
@@ -1975,13 +2073,24 @@
       document.getElementById('confirm-status-hint').textContent = 'Destinataire connecté — en attente de sa réponse…';
     });
     s.on('resolved', (payload) => {
+      currentSendCode = null;
       document.getElementById('confirm-overlay').classList.remove('show');
       handleServerResolution(payload.accepted, pendingAmount, pendingFrom, pendingOther);
     });
   }
 
-  function cancelConfirm(){
+  async function cancelConfirm(){
     document.getElementById('confirm-overlay').classList.remove('show');
+    if (currentSendCode) {
+      try {
+        await fetch(SERVER_URL + '/session/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: currentSendCode })
+        });
+      } catch (err) { /* le code expirera de toute façon */ }
+      currentSendCode = null;
+    }
     busy = false;
     refreshCta();
   }
@@ -2144,9 +2253,7 @@
     errEl.classList.remove('show');
     if (!code) return;
 
-    const toOp = myAccounts.mtn && myAccounts.airtel
-      ? (myAccounts.mtn ? 'mtn' : 'airtel')  // si les deux existent, on prend mtn par défaut pour ce prototype
-      : (myAccounts.mtn ? 'mtn' : 'airtel');
+    const toOp = receiveSelected;
     const toNumber = myAccounts[toOp];
     if (!toNumber) {
       errEl.textContent = "Aucun compte enregistré pour recevoir.";
@@ -2168,6 +2275,7 @@
       document.getElementById('receive-hint').textContent = 'Vérifie le code avec l\'expéditeur';
 
       document.getElementById('incoming-badge').textContent = 'Vers ' + (toOp === 'mtn' ? 'MTN' : 'Airtel');
+      document.getElementById('incoming-from-name').textContent = data.fromName ? data.fromName : '';
       document.getElementById('incoming-amount').textContent = '+' + fmt(data.amount);
 
       const codeRow = document.getElementById('receive-code-row');
@@ -2181,10 +2289,26 @@
       });
 
       document.getElementById('receive-incoming').style.display = '';
+
+      const s = getSocket();
+      s.emit('watch_code', code);
+      s.off('cancelled');
+      s.on('cancelled', () => {
+        document.getElementById('receive-incoming').style.display = 'none';
+        document.getElementById('receive-cancelled').style.display = '';
+      });
     } catch (err) {
       errEl.textContent = err.message === 'Failed to fetch' ? 'Impossible de joindre le serveur.' : err.message;
       errEl.classList.add('show');
     }
+  }
+
+  function backToWaiting(){
+    document.getElementById('receive-cancelled').style.display = 'none';
+    document.getElementById('receive-waiting').style.display = '';
+    document.getElementById('join-code-input').value = '';
+    document.getElementById('receive-hint').textContent = "Entre le code donné par l'expéditeur";
+    activeSessionCode = null;
   }
 
   async function resolveSession(accepted){
@@ -2214,6 +2338,19 @@
   }
 
   function acceptIncoming(){
+    document.getElementById('final-confirm-name').textContent =
+      document.getElementById('incoming-from-name').textContent || (document.getElementById('incoming-badge').textContent);
+    document.getElementById('final-confirm-amount').textContent = document.getElementById('incoming-amount').textContent.replace('+', '');
+    document.getElementById('final-confirm-time').textContent = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    document.getElementById('final-confirm-overlay').classList.add('show');
+  }
+
+  function cancelFinalConfirm(){
+    document.getElementById('final-confirm-overlay').classList.remove('show');
+  }
+
+  function finalizeAccept(){
+    document.getElementById('final-confirm-overlay').classList.remove('show');
     resolveSession(true);
   }
 
