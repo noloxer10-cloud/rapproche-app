@@ -329,8 +329,9 @@
     transition: background 0.12s ease, border-color 0.12s ease;
   }
   .tx-check.checked{
-    background: var(--mtn-yellow);
-    border-color: var(--mtn-yellow);
+    background: #F5F3EE;
+    border-color: #F5F3EE;
+    color: #111;
   }
   .history-action-bar{
     display:flex; align-items:center; justify-content:space-between;
@@ -2071,7 +2072,7 @@
             ${checkHtml}
             <div class="tx-dot ${item.from}">${item.from === 'airtel' ? 'AT' : 'MTN'}</div>
             <div class="tx-info">
-              <div class="tx-title">Envoyé vers un compte ${item.to === 'airtel' ? 'Airtel' : 'MTN'}</div>
+              <div class="tx-title">Transfert envoyé</div>
               <div class="tx-sub">Débité depuis ${item.from === 'airtel' ? 'Airtel Money' : 'MTN MoMo'} · ${item.time}</div>
             </div>
             <div class="tx-amount">-${fmt(item.amount).replace(' FCFA','')}</div>
