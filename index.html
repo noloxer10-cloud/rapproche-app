@@ -310,6 +310,44 @@
     letter-spacing: 0.06em;
     margin-bottom: 10px;
   }
+  .history-header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 4px;
+  }
+  .history-header .history-title{ margin-bottom:0; }
+  .history-select-btn{
+    font-size: 12px; font-weight:600;
+    color: var(--mtn-yellow);
+    padding: 4px 2px;
+  }
+  .tx-check{
+    width: 18px; height:18px; border-radius:5px;
+    border: 1.5px solid #4A4652;
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 11px; color: var(--dusk);
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+  .tx-check.checked{
+    background: var(--mtn-yellow);
+    border-color: var(--mtn-yellow);
+  }
+  .history-action-bar{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top: 12px; padding-top:12px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    font-size: 12.5px; color:#B4B0BC;
+  }
+  .history-cancel-btn{
+    font-size: 12.5px; color:#8A8694; padding: 6px 10px;
+  }
+  .history-delete-btn{
+    font-size: 12.5px; font-weight:600; color:#fff;
+    background: var(--airtel-red);
+    padding: 6px 14px; border-radius: 10px;
+    margin-left: 6px;
+  }
+  .history-delete-btn:disabled{ opacity:0.4; }
   .tx{
     display:flex; align-items:center; gap:12px;
     padding: 12px 4px;
@@ -1314,9 +1352,19 @@
 </div>
 
 <div class="history">
-  <div class="history-title">Transactions récentes</div>
+  <div class="history-header">
+    <div class="history-title">Transactions récentes</div>
+    <button class="history-select-btn" id="send-select-btn" onclick="toggleSelectMode('send')">Sélectionner</button>
+  </div>
   <div id="history-list">
     <div class="empty-hist">Aucune transaction pour l'instant — elles apparaîtront ici.</div>
+  </div>
+  <div class="history-action-bar" id="send-action-bar" style="display:none;">
+    <span id="send-selected-count">0 sélectionnée(s)</span>
+    <div>
+      <button class="history-cancel-btn" onclick="toggleSelectMode('send')">Annuler</button>
+      <button class="history-delete-btn" onclick="deleteSelected('send')">Supprimer</button>
+    </div>
   </div>
 </div>
 
@@ -1350,9 +1398,19 @@
   </div>
 
   <div class="receive-history">
-    <div class="history-title">Reçu récemment</div>
+    <div class="history-header">
+      <div class="history-title">Reçu récemment</div>
+      <button class="history-select-btn" id="receive-select-btn" onclick="toggleSelectMode('receive')">Sélectionner</button>
+    </div>
     <div id="receive-history-list">
       <div class="empty-hist">Rien reçu pour l'instant.</div>
+    </div>
+    <div class="history-action-bar" id="receive-action-bar" style="display:none;">
+      <span id="receive-selected-count">0 sélectionnée(s)</span>
+      <div>
+        <button class="history-cancel-btn" onclick="toggleSelectMode('receive')">Annuler</button>
+        <button class="history-delete-btn" onclick="deleteSelected('receive')">Supprimer</button>
+      </div>
     </div>
   </div>
 
@@ -1959,25 +2017,113 @@
     }, 1800);
   }
 
-  function addHistory(from, to, amount, time){
-    const list = document.getElementById('history-list');
-    const empty = list.querySelector('.empty-hist');
-    if (empty) empty.remove();
+  // ---------- HISTORIQUE (persistant, sélectionnable, supprimable) ----------
+  let selectMode = { send: false, receive: false };
+  let selectedIds = { send: new Set(), receive: new Set() };
 
-    const row = document.createElement('div');
-    row.className = 'tx';
-    row.innerHTML = `
-      <div class="tx-dot ${from}">${from === 'airtel' ? 'AT' : 'MTN'}</div>
-      <div class="tx-info">
-        <div class="tx-title">Envoyé vers un compte ${to === 'airtel' ? 'Airtel' : 'MTN'}</div>
-        <div class="tx-sub">Débité depuis ${from === 'airtel' ? 'Airtel Money' : 'MTN MoMo'} · ${time}</div>
-      </div>
-      <div class="tx-amount">-${fmt(amount).replace(' FCFA','')}</div>
-    `;
-    list.prepend(row);
+  function loadTx(key){
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : [];
+  }
+  function saveTx(key, arr){
+    localStorage.setItem(key, JSON.stringify(arr));
+  }
+
+  function addHistory(from, to, amount, time){
+    const arr = loadTx('rapproche_tx_send');
+    arr.unshift({
+      id: 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      from, to, amount, time
+    });
+    saveTx('rapproche_tx_send', arr);
+    renderHistory('send');
+  }
+
+  function addReceiveHistory(op, amount, time, amountText){
+    const arr = loadTx('rapproche_tx_receive');
+    arr.unshift({
+      id: 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      op, amount, time, amountText
+    });
+    saveTx('rapproche_tx_receive', arr);
+    renderHistory('receive');
+  }
+
+  function renderHistory(type){
+    const key = type === 'send' ? 'rapproche_tx_send' : 'rapproche_tx_receive';
+    const listEl = document.getElementById(type === 'send' ? 'history-list' : 'receive-history-list');
+    const arr = loadTx(key);
+
+    if (arr.length === 0) {
+      listEl.innerHTML = `<div class="empty-hist">${type === 'send' ? "Aucune transaction pour l'instant — elles apparaîtront ici." : "Rien reçu pour l'instant."}</div>`;
+      return;
+    }
+
+    listEl.innerHTML = arr.map(item => {
+      const checked = selectedIds[type].has(item.id);
+      const checkHtml = selectMode[type]
+        ? `<div class="tx-check ${checked ? 'checked' : ''}" onclick="toggleTxSelect('${type}','${item.id}')">${checked ? '✓' : ''}</div>`
+        : '';
+
+      if (type === 'send') {
+        return `
+          <div class="tx" onclick="${selectMode.send ? `toggleTxSelect('send','${item.id}')` : ''}">
+            ${checkHtml}
+            <div class="tx-dot ${item.from}">${item.from === 'airtel' ? 'AT' : 'MTN'}</div>
+            <div class="tx-info">
+              <div class="tx-title">Envoyé vers un compte ${item.to === 'airtel' ? 'Airtel' : 'MTN'}</div>
+              <div class="tx-sub">Débité depuis ${item.from === 'airtel' ? 'Airtel Money' : 'MTN MoMo'} · ${item.time}</div>
+            </div>
+            <div class="tx-amount">-${fmt(item.amount).replace(' FCFA','')}</div>
+          </div>`;
+      } else {
+        return `
+          <div class="tx" onclick="${selectMode.receive ? `toggleTxSelect('receive','${item.id}')` : ''}">
+            ${checkHtml}
+            <div class="tx-dot ${item.op}">${item.op === 'airtel' ? 'AT' : 'MTN'}</div>
+            <div class="tx-info">
+              <div class="tx-title">Paiement reçu</div>
+              <div class="tx-sub">${item.time}</div>
+            </div>
+            <div class="tx-amount" style="color:var(--success);">+${item.amountText || fmt(item.amount).replace(' FCFA','')}</div>
+          </div>`;
+      }
+    }).join('');
+  }
+
+  function toggleSelectMode(type){
+    selectMode[type] = !selectMode[type];
+    selectedIds[type].clear();
+    document.getElementById(type + '-select-btn').textContent = selectMode[type] ? 'Fermer' : 'Sélectionner';
+    document.getElementById(type + '-action-bar').style.display = selectMode[type] ? 'flex' : 'none';
+    updateSelectedCount(type);
+    renderHistory(type);
+  }
+
+  function toggleTxSelect(type, id){
+    if (selectedIds[type].has(id)) selectedIds[type].delete(id);
+    else selectedIds[type].add(id);
+    updateSelectedCount(type);
+    renderHistory(type);
+  }
+
+  function updateSelectedCount(type){
+    const n = selectedIds[type].size;
+    document.getElementById(type + '-selected-count').textContent = n + ' sélectionnée(s)';
+  }
+
+  function deleteSelected(type){
+    if (selectedIds[type].size === 0) return;
+    const key = type === 'send' ? 'rapproche_tx_send' : 'rapproche_tx_receive';
+    const arr = loadTx(key).filter(item => !selectedIds[type].has(item.id));
+    saveTx(key, arr);
+    selectedIds[type].clear();
+    toggleSelectMode(type); // referme le mode sélection proprement
   }
 
   initApp();
+  renderHistory('send');
+  renderHistory('receive');
 
   // ---------- RECEIVE MODE ----------
   let currentMode = 'send';
@@ -2064,24 +2210,6 @@
     document.getElementById('receive-waiting').style.display = '';
     document.getElementById('join-code-input').value = '';
     document.getElementById('receive-hint').textContent = "Entre le code donné par l'expéditeur";
-  }
-
-  function addReceiveHistory(op, amount, time, amountText){
-    const list = document.getElementById('receive-history-list');
-    const empty = list.querySelector('.empty-hist');
-    if (empty) empty.remove();
-
-    const row = document.createElement('div');
-    row.className = 'tx';
-    row.innerHTML = `
-      <div class="tx-dot ${op}">${op === 'airtel' ? 'AT' : 'MTN'}</div>
-      <div class="tx-info">
-        <div class="tx-title">Paiement reçu</div>
-        <div class="tx-sub">${time}</div>
-      </div>
-      <div class="tx-amount" style="color:var(--success);">+${amountText || fmt(amount).replace(' FCFA','')}</div>
-    `;
-    list.prepend(row);
   }
 
   function acceptIncoming(){
