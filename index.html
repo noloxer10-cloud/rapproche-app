@@ -1293,6 +1293,22 @@
   </div>
 </div>
 
+<div class="confirm-overlay" id="final-confirm-overlay">
+  <div class="confirm-sheet">
+    <div class="confirm-title">Dernière vérification</div>
+    <div class="confirm-sub">Confirme avant que l'argent soit crédité</div>
+
+    <div class="final-confirm-box">
+      <div class="final-confirm-row"><span>De la part de</span><span id="final-confirm-name">—</span></div>
+      <div class="final-confirm-row"><span>Montant</span><span id="final-confirm-amount">0 FCFA</span></div>
+      <div class="final-confirm-row"><span>Heure</span><span id="final-confirm-time">—</span></div>
+    </div>
+
+    <button class="confirm-btn" onclick="finalizeAccept()">Oui, confirmer</button>
+    <button class="cancel-btn" onclick="cancelFinalConfirm()">Annuler</button>
+  </div>
+</div>
+
 <div class="pin-overlay" id="pin-overlay">
   <div class="confirm-sheet">
     <div class="confirm-title">Code PIN requis</div>
@@ -1394,22 +1410,6 @@
     </div>
 
     <button class="cancel-btn" onclick="cancelConfirm()">Annuler</button>
-  </div>
-</div>
-
-<div class="confirm-overlay" id="final-confirm-overlay">
-  <div class="confirm-sheet">
-    <div class="confirm-title">Dernière vérification</div>
-    <div class="confirm-sub">Confirme avant que l'argent soit crédité</div>
-
-    <div class="final-confirm-box">
-      <div class="final-confirm-row"><span>De la part de</span><span id="final-confirm-name">—</span></div>
-      <div class="final-confirm-row"><span>Montant</span><span id="final-confirm-amount">0 FCFA</span></div>
-      <div class="final-confirm-row"><span>Heure</span><span id="final-confirm-time">—</span></div>
-    </div>
-
-    <button class="confirm-btn" onclick="finalizeAccept()">Oui, confirmer</button>
-    <button class="cancel-btn" onclick="cancelFinalConfirm()">Annuler</button>
   </div>
 </div>
 
